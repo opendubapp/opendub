@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+httpx
+numpy
+soundfile
+faster-whisper
+demucs
+zhconv
+jieba
