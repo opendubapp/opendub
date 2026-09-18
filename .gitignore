@@ -1,0 +1,12 @@
+.env
+work/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+# videos are user content, never committed
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.pdf

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OpenVoice — dub any video into any language</title>
+<meta name="description" content="Upload a video and get it back in another language — in the speaker's own voice, with subtitles. Built on Higgs Audio." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23020202'/%3E%3Cg fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M9 13v6M13 10v12M17 12v8M21 9v14M25 14v4'/%3E%3C/g%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/vendor/tokens/styles.css" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="/" aria-label="OpenVoice home">
+      <span class="brand-tile" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>
+      </span>
+      <span class="brand-word"><span class="muted">Open</span>Voice<span class="dot">.</span></span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="#how">How it works</a>
+    </nav>
+    <div class="header-actions">
+      <span class="powered">Higgs Audio · <span id="model-list" class="mono"></span></span>
+      <a class="oa-btn oa-btn--primary oa-btn--sm" href="#app">Open the app</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero" data-spine="hero">
+    <div class="container">
+      <p class="oa-eyebrow">Open source · Local-first · Powered by Higgs Audio</p>
+      <h1>Your video, in any language, in your own voice.</h1>
+      <p class="lede">Upload a video in one language and choose another. OpenVoice separates the speech from the music, transcribes it, translates each sentence to fit its moment, and speaks it back in a clone of the original voice — then burns in subtitles in the new language.</p>
+      <ul class="pillars">
+        <li><b>Open source.</b> Every step is plain code you can read, run and replace.</li>
+        <li><b>Local, except the voice models.</b> Separation, speech detection, timing, mixing and rendering run on your machine. Your video never leaves it — only speech clips and text go to Higgs Audio.</li>
+        <li><b>Powerful.</b> Your own cloned voice in 17 languages, each line timed to your lips and carrying your tone — surprise, enthusiasm, calm.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="app" data-spine="app">
+    <div class="container">
+
+      <!-- 1. New dub -->
+      <div id="view-new" class="panel">
+        <label id="drop" class="drop" for="file">
+          <input id="file" type="file" accept="video/*,audio/*" hidden />
+          <span class="drop-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
+          </span>
+          <span class="drop-title" id="drop-title">Drop a video here, or choose one</span>
+          <span class="drop-sub" id="drop-sub">MP4, MOV or WebM — speech in any language</span>
+        </label>
+
+        <div class="options">
+          <div class="field">
+            <label for="source">Spoken in</label>
+            <select id="source" class="oa-input"></select>
+          </div>
+          <span class="arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </span>
+          <div class="field">
+            <label for="target">Dub into</label>
+            <select id="target" class="oa-input"></select>
+          </div>
+          <div class="field">
+            <span class="label" id="mode-label">Voice</span>
+            <div class="seg" role="radiogroup" aria-labelledby="mode-label">
+              <button type="button" role="radio" aria-checked="true" data-mode="replace">Replace the voice</button>
+              <button type="button" role="radio" aria-checked="false" data-mode="voiceover">Voice-over</button>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="burn" checked /> <span>Burn in subtitles</span></label>
+        </div>
+
+        <details class="more" id="more">
+          <summary>
+            <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+            Other settings <span class="oa-caption" id="more-summary">Cloned voice · tone matched per line</span>
+          </summary>
+          <div class="more-grid">
+            <div class="field">
+              <label for="set-voice">Voice</label>
+              <select id="set-voice" class="oa-input"><option value="clone">Clone the speaker</option></select>
+              <span class="oa-caption">Or a Higgs preset voice.</span>
+            </div>
+            <div class="field">
+              <label for="set-tone">Tone</label>
+              <select id="set-tone" class="oa-input"><option value="auto">Match the speaker, line by line</option></select>
+              <span class="oa-caption">Read from the words and from how loud and fast each line was said.</span>
+            </div>
+            <div class="field">
+              <label for="set-expressive">Expressiveness</label>
+              <select id="set-expressive" class="oa-input">
+                <option value="auto">Per line</option><option value="low">Flatter</option>
+                <option value="normal">Normal</option><option value="high">More animated</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="set-pitch">Pitch</label>
+              <select id="set-pitch" class="oa-input">
+                <option value="natural">Natural</option><option value="low">Lower</option><option value="high">Higher</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="set-style">Delivery</label>
+              <select id="set-style" class="oa-input">
+                <option value="auto">As spoken</option><option value="none">Normal voice</option>
+                <option value="whispering">Whispering</option><option value="shouting">Shouting</option>
+              </select>
+            </div>
+            <div class="field checks">
+              <label class="check"><input type="checkbox" id="set-normalize" checked /> <span>Read numbers and symbols as words</span></label>
+              <label class="check"><input type="checkbox" id="qa" checked /> <span>Check every line by ear</span></label>
+            </div>
+          </div>
+          <p class="oa-caption more-note">Speaking speed is not a setting: it is chosen per line so each one starts and ends with the speaker.</p>
+        </details>
+
+        <div class="actions">
+          <p class="hint" id="new-hint">Replace the voice keeps the music and effects and swaps the speech. Voice-over leaves the original faintly underneath.</p>
+          <button id="start" class="oa-btn oa-btn--primary oa-btn--md" disabled>Dub this video</button>
+        </div>
+      </div>
+
+      <!-- 2. Working -->
+      <div id="view-run" class="panel" hidden>
+        <div class="run-head">
+          <div>
+            <p class="oa-eyebrow" id="run-eyebrow">Dubbing</p>
+            <h2 id="run-title">—</h2>
+          </div>
+          <span class="elapsed mono" id="elapsed">0:00</span>
+        </div>
+        <ol class="stages" id="stages"></ol>
+        <details class="log" open>
+          <summary>What it is doing</summary>
+          <pre id="log" class="mono"></pre>
+        </details>
+      </div>
+
+      <!-- 3. Result -->
+      <div id="view-result" hidden>
+        <div class="result-head">
+          <div>
+            <p class="oa-eyebrow" id="res-eyebrow">Done</p>
+            <h2 id="res-title">—</h2>
+          </div>
+          <div class="result-actions">
+            <a class="oa-btn oa-btn--primary oa-btn--md" id="dl-video" href="#">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+              Download video</a>
+            <button class="oa-btn oa-btn--secondary oa-btn--md" id="new-dub">New dub</button>
+          </div>
+        </div>
+
+        <div class="players" id="players">
+          <figure>
+            <figcaption><span>Original</span><span class="oa-caption" id="src-lang"></span></figcaption>
+            <video id="v-src" controls playsinline preload="metadata" muted></video>
+          </figure>
+          <figure>
+            <figcaption><span>Dubbed</span><span class="oa-caption" id="dub-lang"></span></figcaption>
+            <video id="v-dub" controls playsinline preload="metadata"></video>
+          </figure>
+        </div>
+        <div class="compare">
+          <button class="oa-btn oa-btn--secondary oa-btn--sm" id="play-both">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>
+            Play side by side</button>
+          <button class="oa-btn oa-btn--secondary oa-btn--sm" id="stop-both">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+            Stop both</button>
+          <span class="oa-caption">The original plays muted, so you hear the dub against the picture it was made for.</span>
+        </div>
+
+        <div class="timeline-wrap">
+          <div class="timeline" id="timeline" aria-label="Timeline"></div>
+          <div class="legend oa-caption">
+            <span><i class="sw sw-vad"></i>Speech (Silero VAD)</span>
+            <span><i class="sw sw-src"></i>Original sentence</span>
+            <span><i class="sw sw-dub"></i>Dubbed line</span>
+            <span><i class="sw sw-fast"></i>Stretched more than 10%</span>
+            <span><i class="sw sw-manual"></i>Placed by hand</span>
+          </div>
+          <p class="oa-caption tl-help">Drag a dubbed block to move it, or its edges to change its length. Double-click to snap it back onto the original.</p>
+        </div>
+
+        <div class="stats" id="stats"></div>
+
+        <div class="lines-head">
+          <h3>Lines</h3>
+          <p class="oa-caption">Change any translation, tone or timing and apply just those lines — the rest is kept.</p>
+        </div>
+        <ol class="lines" id="lines"></ol>
+        <div class="redub-bar" id="redub-bar" hidden>
+          <span id="redub-count">1 line edited</span>
+          <button class="oa-btn oa-btn--ghost oa-btn--sm" id="redub-reset">Undo edits</button>
+          <button class="oa-btn oa-btn--primary oa-btn--sm" id="redub-go">Apply changes</button>
+        </div>
+
+        <div class="downloads">
+          <span class="oa-eyebrow">Files</span>
+          <div class="dl-row" id="downloads"></div>
+        </div>
+      </div>
+
+      <div class="recent" id="recent" hidden>
+        <span class="oa-eyebrow">Recent</span>
+        <ul id="recent-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" data-spine="how">
+    <div class="container">
+      <div class="section-head">
+        <p class="oa-eyebrow">How it works</p>
+        <h2>Four models, each doing the one thing it is best at.</h2>
+      </div>
+      <ol class="steps">
+        <li><span class="step-n mono">01</span><h3>Separate</h3><p>Demucs splits the speech from the music and effects, so the soundtrack survives the dub and every model below hears a clean voice.</p></li>
+        <li><span class="step-n mono">02</span><h3>Listen</h3><p>Silero VAD finds the speech. Higgs STT writes down the words in whatever language they are spoken; a local Whisper supplies only the timing, aligned word by word.</p></li>
+        <li><span class="step-n mono">03</span><h3>Translate to fit</h3><p>The Higgs chat model translates whole sentences, each sized to how long the speaker took to say it — so the new voice starts and stops with their lips.</p></li>
+        <li><span class="step-n mono">04</span><h3>Speak, then check</h3><p>Higgs TTS clones the voice from a clean sentence of the original and delivers each line in the tone it was said in, read from the words and from how loud and fast the speaker was. Each line is transcribed back and regenerated if it drifted, then re-said or gently stretched to match the original length.</p></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span class="brand-word small"><span class="muted">Open</span>Voice<span class="dot">.</span></span>
+    <span class="oa-caption">Open source. Speech, translation and voice by Higgs Audio from Boson AI; separation (Demucs), speech detection (Silero), timing (Whisper) and rendering (ffmpeg) run locally.</span>
+  </div>
+</footer>
+
+<script src="/app.js" type="module"></script>
+</body>
+</html>
