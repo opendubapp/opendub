@@ -345,3 +345,53 @@ section { scroll-margin-top: 5.5rem; }
 
 .local-engine { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); }
 .local-engine .oa-input { height: var(--control-h-md); }
+
+/* --- installing the free voice from the card (APP-182) ---------------------
+   Someone who picks the free voice usually does not have the app yet, so the
+   card hands them the one line that installs it rather than a command that
+   assumes a checkout. */
+.install { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.install b { color: var(--text-strong); font-weight: 600; }
+.install-cmd {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 10px; border-radius: var(--radius-md, 8px);
+  background: var(--surface-sunken, rgba(0, 0, 0, .05));
+  border: var(--border-width, 1px) solid var(--border-hairline, #dfe3e9);
+}
+.install-cmd code {
+  flex: 1 1 260px; min-width: 0; font-size: 12.5px; line-height: 1.5;
+  overflow-wrap: anywhere; color: var(--text-strong); background: none; padding: 0;
+}
+/* .omni-status button is the plain underlined "connect again" link; the copy
+   control sits in the same block and has to look like a button instead. */
+.omni-status .copy-btn, .copy-btn {
+  flex: 0 0 auto; font: inherit; font-size: 12px; padding: 3px 12px; cursor: pointer;
+  text-decoration: none;
+  border-radius: var(--radius-full, 999px); border: var(--border-width, 1px) solid var(--border-hairline, #dfe3e9);
+  background: var(--surface-card, #fff); color: var(--text-body);
+}
+.omni-status .copy-btn:hover, .copy-btn:hover { color: var(--text-strong); border-color: var(--text-faint, #9aa5ad); }
+
+/* The same one-liner on the page itself, for a reader who scrolled past the
+   card. Language-neutral command, translated heading and caption. */
+.install-line { margin: 0 0 var(--space-4, 16px); }
+.install-line b { display: block; color: var(--text-strong); margin-bottom: 6px; }
+.install-line pre {
+  margin: 0 0 6px; padding: 10px 12px; overflow-x: auto;
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-sunken, rgba(0, 0, 0, .05));
+  border: var(--border-width, 1px) solid var(--border-hairline, #dfe3e9);
+}
+.install-line code { font-size: 12.5px; color: var(--text-strong); white-space: pre; }
+
+/* The installer is the way in; the command line is the fallback behind a link. */
+.install-dl { align-self: flex-start; text-decoration: none; }
+.install-toggle {
+  align-self: flex-start; font: inherit; font-size: 12px; padding: 0; cursor: pointer;
+  background: none; border: 0; color: var(--text-link); text-decoration: underline;
+}
+
+/* What the search found, above the offer to install: the card must not redraw
+   the same panel it already had, or pressing the button looks like nothing. */
+.install-outcome { display: flex; flex-direction: column; gap: 6px; }
+.install-outcome > b { color: var(--text-strong); }

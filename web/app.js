@@ -1,5 +1,7 @@
 // OpenDub client: upload, poll, show, edit, re-dub. No framework — one page, three views.
 
+import { t } from "/i18n.js";  // the card's own strings; the page itself is translated per locale
+
 const $ = (s) => document.querySelector(s);
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
@@ -538,6 +540,18 @@ async function loadRecent() {
   } catch { /* the list is a convenience */ }
 }
 
+/** "Open the app" means the card in the hero, not the demo further down. */
+function callToCard(ev) {
+  const card = document.getElementById("dub-here");
+  if (!card || card.hidden) return;            // another page: let the link navigate
+  if (ev) ev.preventDefault();
+  card.scrollIntoView({ behavior: "smooth", block: "center" });
+  const drop = document.getElementById("bdrop");
+  if (!drop) return;
+  drop.classList.add("is-called");             // so something visibly happens even at the top
+  setTimeout(() => drop.classList.remove("is-called"), 1400);
+}
+
 // ---------------------------------------------------------------- dub here, in this tab (public site)
 
 let bfile = null;
@@ -621,25 +635,95 @@ function wireBrowserDub() {
   async function detect() {
     const st = $("#bomni-status");
     st.className = "omni-status";
-    st.textContent = "Looking for the OpenDub app on this computer…";
+    // Chrome asks permission before a public page may reach 127.0.0.1, and the
+    // prompt talks about "devices on your local network", which sounds like far
+    // more than it is. Say what it means before it appears.
+    st.replaceChildren(
+      el("span", {}, t("Looking for the OpenDub app on this computer…")),
+      el("span", { class: "oa-caption" }, t("Your browser may ask to allow access to your local network. That is this app on your computer — nothing else.")));
+    const startedAt = Date.now();
     const m = await loadBrowser();
     const s = await m.localAppStatus();
     engines = s?.engines || (s?.omnivoice ? [{ id: "omnivoice", name: "OmniVoice", ready: true, commercial: false, exact_duration: true, note: "" }] : []);
     omniReady = engines.some((e) => e.ready);
     remember(omniReady);
+    // Under ~700 ms the whole thing flashes past and the card looks unchanged,
+    // which is exactly how "I pressed it and nothing happened" is produced.
+    const left = 700 - (Date.now() - startedAt);
+    if (left > 0) await new Promise((r) => setTimeout(r, left));
     if (omniReady) {
       st.className = "omni-status is-ready";
-      st.textContent = "Connected to the OpenDub app on this computer.";
+      st.textContent = t("Connected to the OpenDub app on this computer.");
       form.querySelector('input[value="local"]').checked = true;
       fillEngines();
     } else {
       st.className = "omni-status is-missing";
-      st.replaceChildren(s ? "The OpenDub app is running but has no voice engine installed yet: " : "Start the OpenDub app on this computer (",
-        el("code", {}, s ? ".venv/bin/pip install omnivoice" : "./run.sh"), s ? ". " : "), then ",
-        el("button", { type: "button", onclick: detect }, "connect again"), ".");
+      // The app was not there. Telling someone to run ./run.sh assumes they
+      // already have OpenDub; most people asking for the free voice do not,
+      // so hand them the one line that installs it and starts it.
+      st.replaceChildren(s
+        ? el("span", {}, t("The OpenDub app is running but OmniVoice is not installed: "),
+            el("code", {}, ".venv/bin/pip install omnivoice"), ". ",
+            el("button", { type: "button", onclick: detect }, t("connect again")), ".")
+        : el("span", { class: "install-outcome" },
+            el("b", {}, await blockedByBrowser()
+              ? t("Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.")
+              : t("Nothing answered on this computer.")),
+            installPanel()));
     }
     update();
   }
+  /** Chrome refuses a public page's request to 127.0.0.1 until it is allowed,
+      and a refusal looks exactly like nothing being installed. Tell them apart
+      where the browser will say, and stay quiet where it will not. */
+  async function blockedByBrowser() {
+    try {
+      const p = await navigator.permissions.query({ name: "local-network-access" });
+      return p.state === "denied";
+    } catch { return false; }
+  }
+
+  /** One line that installs the free voice and starts it, with a copy button. */
+  function installPanel() {
+    const cmd = "curl -fsSL https://opendub.app/install.sh | bash";
+    const copy = el("button", { type: "button", class: "copy-btn" }, t("Copy"));
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(cmd);
+        copy.textContent = t("Copied");
+        setTimeout(() => { copy.textContent = t("Copy"); }, 1600);
+      } catch {
+        // Clipboard refused: select the line so it can still be copied by hand.
+        const r = document.createRange();
+        r.selectNodeContents(copy.previousElementSibling);
+        const sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+    });
+    // A download beats a command for almost everyone, so the installer leads and
+    // the one-liner stays for Linux and for people who would rather read it.
+    const ua = navigator.userAgentData?.platform || navigator.platform || "";
+    const mac = /mac/i.test(ua), win = /win/i.test(ua);
+    const line = el("span", { class: "install-cmd", hidden: mac || win }, el("code", {}, cmd), copy);
+    const kids = [];
+    if (mac || win) {
+      kids.push(el("a", { class: "oa-btn oa-btn--primary oa-btn--sm install-dl",
+                          href: mac ? "/OpenDub.dmg" : "/OpenDub-setup.exe", download: "" },
+                   t(mac ? "Download OpenDub for Mac" : "Download OpenDub for Windows")),
+                el("span", { class: "oa-caption" }, t("Open it and press Install. No terminal, nothing to set up.")),
+                el("button", { type: "button", class: "install-toggle",
+                               onclick: () => { line.hidden = !line.hidden; } }, t("Or install it with one line")),
+                line);
+    } else {
+      kids.push(el("b", {}, t("Install it in one line")), line);
+    }
+    return el("span", { class: "install" }, ...kids,
+      el("span", { class: "oa-caption" }, t("About 2 GB, a few minutes. It all stays on this computer.")),
+      el("span", { class: "oa-caption" }, t("When it finishes, press the button below.")),
+      el("span", { class: "oa-caption" }, t("Your browser may ask to allow access to your local network. That is this app on your computer — nothing else.")));
+  }
+
   // Every engine the app knows, with its licence on the label; ones not installed
   // here are shown but greyed, so people see what exists and why it is unavailable.
   let engines = [];
@@ -667,6 +751,8 @@ function wireBrowserDub() {
   update();
   form.addEventListener("change", update);
   $("#bkey").addEventListener("input", update);
+  for (const a of document.querySelectorAll('a[href$="#app"]')) a.addEventListener("click", callToCard);
+  if (location.hash === "#app") callToCard(null);
 
   // Offer on-device voice removal honestly: WebGPU makes it minutes, not tens of minutes.
   loadBrowser().then(async (m) => {

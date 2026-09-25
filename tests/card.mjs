@@ -68,8 +68,12 @@ const statusBefore = await page.locator("#bomni-status").textContent();
 await start.click();
 await page.waitForTimeout(2500);
 const statusAfter = await page.locator("#bomni-status").textContent();
+check("pressing it says what the search found",
+  /Nothing answered|blocking this page|Connected/.test(statusAfter),
+  statusAfter.replace(/\s+/g, " ").trim().slice(0, 70));
 check("pressing it changes the status instead of doing nothing",
-  statusAfter !== statusBefore || /Looking|Start the OpenDub app/.test(statusAfter), statusAfter.trim().slice(0, 80));
+  statusAfter !== statusBefore || /Looking|Install it in one line|Download OpenDub|OpenDub app/.test(statusAfter),
+  statusAfter.replace(/\s+/g, " ").trim().slice(0, 80));
 
 // APP-167 — the demo result has no separate audio file; that must not print "null".
 await page.goto(`${site.url}#demo`, { waitUntil: "networkidle" });
@@ -78,6 +82,38 @@ const filesText = (await page.locator("#downloads").innerText()).trim();
 check("the files row has no bare null", !/(^|\s)null(\s|$)/.test(filesText), filesText.replace(/\s+/g, " "));
 check("the files row still lists the video and both subtitle files",
   (await page.locator("#downloads a").count()) >= 4, `${await page.locator("#downloads a").count()} buttons`);
+
+// APP-182 — someone who picks the free voice usually does not have the app yet.
+// Whoever runs this test may have it running, so refuse the localhost probe and
+// test the state a first-time visitor is actually in.
+await page.route("**/127.0.0.1:8910/**", (route) => route.abort());
+await page.goto(site.url, { waitUntil: "networkidle" });
+await page.locator("#dub-here .provider#bomni input").check();
+await page.waitForTimeout(2600);   // the card looks for the app on localhost first
+const panel = page.locator("#bomni-status .install");
+check("the free route offers a one-line install", await panel.count() === 1);
+check("the install line is the one the site serves",
+  (await page.locator("#bomni-status .install-cmd code").textContent()).trim()
+    === "curl -fsSL https://opendub.app/install.sh | bash",
+  (await page.locator("#bomni-status .install-cmd code").textContent() || "").trim());
+check("there is a copy button beside it", await page.locator("#bomni-status .copy-btn").count() === 1);
+// On a Mac or a PC the installer leads and the command hides behind a link;
+// everywhere else the command is the offer.
+const mac = process.platform === "darwin";
+check("the installer is offered before the command line",
+  mac ? await page.locator("#bomni-status .install-dl").count() === 1
+      : await page.locator("#bomni-status .install-cmd").isVisible(),
+  mac ? (await page.locator("#bomni-status .install-dl").textContent().catch(() => "")) : "command shown");
+
+// "Open the app" used to land on the finished demo, which reads as a dead button.
+await page.goto(site.url, { waitUntil: "networkidle" });
+await page.locator('header a[href$="#app"]').click();
+await page.waitForTimeout(900);
+check("\"Open the app\" calls attention to the card, not the demo",
+  await page.locator("#bdrop.is-called, #dub-here").first().isVisible());
+const cardBox = await page.locator("#dub-here").boundingBox();
+check("the card is on screen after pressing it",
+  !!cardBox && cardBox.y < 900 && cardBox.y + cardBox.height > 0, `y=${cardBox && Math.round(cardBox.y)}`);
 
 check("no page errors", errors.length === 0, errors.join(" | ").slice(0, 200));
 

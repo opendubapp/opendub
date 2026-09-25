@@ -1,0 +1,12 @@
+# Just enough to give opendub.app a free voice from this computer.
+#
+# The browser does the rest — it separates, transcribes, times and renders in
+# the tab — so this install only has to speak, and it skips demucs,
+# faster-whisper and the ffmpeg pipeline. For a whole dub on this machine
+# instead of in a tab, install requirements.txt as well.
+fastapi
+uvicorn[standard]
+python-multipart
+numpy
+soundfile
+omnivoice
