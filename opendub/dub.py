@@ -106,6 +106,7 @@ class Speaker:
     ref_text: str = ""
     voice: str | None = None
     normalize: bool = True      # Higgs text normalisation: "10,000" is read as words
+    engine: str = "higgs"       # higgs, or a free engine on this computer (engines.CATALOG)
 
 
 def _speak_checked(line: Line, i: int, work: Path, lang: Language, spk: Speaker,
@@ -115,9 +116,17 @@ def _speak_checked(line: Line, i: int, work: Path, lang: Language, spk: Speaker,
     for attempt in range(2 if qa else 1):
         line.attempts += 1
         raw = work / f"tts_{i:03d}_{line.attempts}.wav"
-        boson.speak(tone.tags(line.tone) + line.text, raw, ref_audio=spk.ref,
-                    ref_text=spk.ref_text, voice=spk.voice, tn_language=lang.iso,
-                    enable_tn=spk.normalize)
+        if spk.engine != "higgs":
+            # A free engine on this computer. Those with length control are asked
+            # for the speaker's own length; tone tags are Higgs-only.
+            from . import engines
+            clips, sr = engines.speak(spk.engine, [line.text], spk.ref, spk.ref_text,
+                                      [line.seg.duration], lang.iso)
+            media.save(raw, clips[0], sr=sr)
+        else:
+            boson.speak(tone.tags(line.tone) + line.text, raw, ref_audio=spk.ref,
+                        ref_text=spk.ref_text, voice=spk.voice, tn_language=lang.iso,
+                        enable_tn=spk.normalize)
         a = media.trim_silence(media.load(raw))
         trimmed = media.save(work / f"tts_{i:03d}_{line.attempts}_trim.wav", a)
         sim = None
@@ -165,7 +174,11 @@ def synthesise(lines: list[Line], work: Path, lang: Language, spk: Speaker,
         line = lines[i]
         _speak_checked(line, i, work, lang, spk, qa)
         first = line.duration
-        steps = (["resize", "resize", "resize"] if allow_resize else []) + ["speed"]
+        # Engines with length control already generated the right length. Other
+        # free engines can be re-worded but have no Higgs speed tag.
+        from . import engines
+        exact = spk.engine != "higgs" and engines.CATALOG[spk.engine].exact_duration
+        steps = [] if exact else (["resize", "resize", "resize"] if allow_resize else []) + ([] if spk.engine != "higgs" else ["speed"])
         for step in steps:
             r = _off(line)
             if line.seg.duration < 1.0 or 1 / TOLERANCE <= r <= TOLERANCE:

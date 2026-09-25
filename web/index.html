@@ -3,40 +3,107 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>OpenVoice — dub any video into any language</title>
+<title>OpenDub — dub any video into any language</title>
 <meta name="description" content="Upload a video and get it back in another language — in the speaker's own voice, with subtitles. Built on Higgs Audio." />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23020202'/%3E%3Cg fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M9 13v6M13 10v12M17 12v8M21 9v14M25 14v4'/%3E%3C/g%3E%3C/svg%3E" />
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+<link rel="apple-touch-icon" href="/icon-180.png" />
+<link rel="canonical" href="https://opendub.app/" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="OpenDub" />
+<meta property="og:title" content="OpenDub — your video, in any language, in your own voice" />
+<meta property="og:description" content="Upload a video and get it back dubbed in another language, in the speaker's cloned voice, each line timed to their lips and said in their tone, with subtitles burned in." />
+<meta property="og:url" content="https://opendub.app/" />
+<meta property="og:image" content="https://opendub.app/og-image.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="OpenDub: your video, in any language, in your own voice." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://opendub.app/og-image.png" />
 <link rel="stylesheet" href="/vendor/tokens/styles.css" />
 <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
 <header class="site-header">
   <div class="container">
-    <a class="brand" href="/" aria-label="OpenVoice home">
+    <a class="brand" href="/" aria-label="OpenDub home">
       <span class="brand-tile" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>
       </span>
-      <span class="brand-word"><span class="muted">Open</span>Voice<span class="dot">.</span></span>
+      <span class="brand-word"><span class="muted">Open</span>Dub<span class="dot">.</span></span>
     </a>
     <nav class="site-nav" aria-label="Primary">
       <a href="#how">How it works</a>
     </nav>
     <div class="header-actions">
-      <span class="powered">Higgs Audio · <span id="model-list" class="mono"></span></span>
       <a class="oa-btn oa-btn--primary oa-btn--sm" href="#app">Open the app</a>
+      <a class="account-btn" href="/account" aria-label="Account" title="Account">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      </a>
     </div>
   </div>
 </header>
 
 <main>
   <section class="hero" data-spine="hero">
-    <div class="container">
-      <p class="oa-eyebrow">Open source · Local-first · Powered by Higgs Audio</p>
-      <h1>Your video, in any language, in your own voice.</h1>
-      <p class="lede">Upload a video in one language and choose another. OpenVoice separates the speech from the music, transcribes it, translates each sentence to fit its moment, and speaks it back in a clone of the original voice — then burns in subtitles in the new language.</p>
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <p class="oa-eyebrow">Open source · Local-first · Higgs Audio, ElevenLabs and more</p>
+        <h1>Your video, in any language, in your own voice.</h1>
+        <p class="lede">Upload a video in one language and choose another. OpenDub separates the speech from the music, transcribes it, translates each sentence to fit its moment, and speaks it back in a clone of the original voice — then burns in subtitles in the new language.</p>
+      </div>
+
+      <!-- The public site: dub right here, in this tab. -->
+      <form class="dub-card" id="dub-here" hidden autocomplete="off">
+        <p class="oa-eyebrow">Dub your own video</p>
+        <label class="mini-drop" id="bdrop" for="bfile">
+          <input id="bfile" type="file" accept="video/*" hidden />
+          <span class="mini-drop-title" id="bdrop-title">Choose a video, or drop it here</span>
+          <span class="oa-caption" id="bdrop-sub">Up to 5 minutes. It never leaves this device.</span>
+        </label>
+        <div class="dub-langs">
+          <div class="field"><label for="bsource">Spoken in</label><select id="bsource" class="oa-input"></select></div>
+          <div class="field"><label for="btarget">Dub into</label><select id="btarget" class="oa-input"></select></div>
+        </div>
+        <fieldset class="providers">
+          <legend>Voice model</legend>
+          <label class="provider" id="bomni"><input type="radio" name="bprovider" value="local" />
+            <span class="provider-body"><span class="provider-head"><b>On your computer</b><span class="cost-badge cost-free" title="Runs on your computer. No key, no account, nothing uploaded.">Free</span></span>
+            <span class="oa-caption">Open voice models running in the OpenDub app on your computer. Slower than the cloud.</span>
+            <span class="omni-status" id="bomni-status" role="status">Uses the OpenDub app on your computer. <button type="button" id="bomni-connect">Connect to it</button></span>
+            <span class="local-engine" id="bengine-wrap" hidden><select id="bengine" class="oa-input" aria-label="Voice engine on this computer"></select>
+            <span class="oa-caption" id="bengine-note"></span></span></span></label>
+          <label class="provider"><input type="radio" name="bprovider" value="higgs" checked />
+            <span class="provider-body"><span class="provider-head"><b>Higgs Audio</b><span class="cost-badge cost-own-key" title="Calls Boson AI with your own key. You pay Boson directly.">Your own API key</span></span>
+            <span class="oa-caption">Transcribes, translates, reads the tone and clones the voice.</span></span></label>
+          <label class="provider"><input type="radio" name="bprovider" value="elevenlabs" />
+            <span class="provider-body"><span class="provider-head"><b>ElevenLabs</b><span class="cost-badge cost-own-key" title="Calls ElevenLabs with your own key. You pay ElevenLabs directly.">Your own API key</span></span>
+            <span class="oa-caption">Scribe and instant voice cloning. New here — tell us how it goes.</span></span></label>
+          <label class="provider is-unavailable"><input type="radio" name="bprovider" value="credits" disabled />
+            <span class="provider-body"><span class="provider-head"><b>OpenDub credits</b><span class="cost-badge cost-paid" title="Runs on our keys and is charged to your account's credits.">Paid</span></span>
+            <span class="oa-caption">No key needed. Coming soon.</span></span></label>
+        </fieldset>
+        <div class="field" id="bkey-wrap">
+          <label for="bkey" id="bkey-label">Higgs Audio API key</label>
+          <input id="bkey" class="oa-input" type="password" spellcheck="false" placeholder="bai-…" />
+          <span class="oa-caption" id="bkey-note">Used for this dub only and sent only to Boson AI. Never stored.</span>
+        </div>
+        <div class="field" id="btkey-field" hidden>
+          <label for="btkey">Higgs Audio key for translation <span class="oa-caption">(optional)</span></label>
+          <input id="btkey" class="oa-input" type="password" spellcheck="false" placeholder="bai-…" />
+          <span class="oa-caption" id="btkey-note">ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.</span>
+        </div>
+        <label class="check"><input type="checkbox" id="bremove" /> <span>Remove the original voice on this device</span></label>
+        <p class="oa-caption" id="bremove-note">Keeps the music and swaps only the speech. Downloads a 172 MB separator once.</p>
+        <button class="oa-btn oa-btn--primary oa-btn--md" id="bstart" type="submit" disabled>Dub on this device</button>
+        <p class="oa-caption bprivacy">The video stays on this device. Only speech clips and text go to the model you choose.</p>
+      </form>
+
       <ul class="pillars">
         <li><b>Open source.</b> Every step is plain code you can read, run and replace.</li>
-        <li><b>Local, except the voice models.</b> Separation, speech detection, timing, mixing and rendering run on your machine. Your video never leaves it — only speech clips and text go to Higgs Audio.</li>
+        <li><b>Local, except the voice models.</b> Separation, speech detection, timing, mixing and rendering run on your device. Your video never leaves it — only speech clips and text go to the voice model you choose.</li>
         <li><b>Powerful.</b> Your own cloned voice in 17 languages, each line timed to your lips and carrying your tone — surprise, enthusiasm, calm.</li>
       </ul>
     </div>
@@ -86,8 +153,8 @@
           <div class="more-grid">
             <div class="field">
               <label for="set-voice">Voice</label>
-              <select id="set-voice" class="oa-input"><option value="clone">Clone the speaker</option></select>
-              <span class="oa-caption">Or a Higgs preset voice.</span>
+              <select id="set-voice" class="oa-input"><option value="clone">Clone the speaker — Higgs</option><option value="omnivoice">Clone the speaker — OmniVoice (free, on this computer)</option></select>
+              <span class="oa-caption">OmniVoice is free and local but slower, and for non-commercial use. Or pick a Higgs preset voice.</span>
             </div>
             <div class="field">
               <label for="set-tone">Tone</label>
@@ -210,6 +277,31 @@
         </div>
       </div>
 
+      <!-- 4. The public site: how to dub your own -->
+      <div id="view-local" class="panel local" hidden>
+        <p class="oa-eyebrow">Dub your own video</p>
+        <h2>Or run OpenDub on your own machine.</h2>
+        <p class="local-lede">The card at the top dubs videos up to five minutes right in this tab. The app on your computer has no length limit, removes the voice faster, and lets you edit, re-tone or drag any line and re-dub it in about ten seconds.</p>
+        <div class="routes" role="list">
+          <div class="route" role="listitem">
+            <div class="route-head"><span class="route-name">Higgs Audio</span><span class="cost-badge cost-own-key" title="Calls Boson AI with your own key. You pay Boson directly; the key stays on your machine.">Your own API key</span></div>
+            <p class="route-note">Higgs STT, translation and a cloned voice with tone tags. The best quality, and what made the dub above.</p>
+            <p class="route-price">Boson AI's usage prices</p>
+          </div>
+          <div class="route is-unavailable" role="listitem" aria-disabled="true">
+            <div class="route-head"><span class="route-name">On this device</span><span class="cost-badge cost-free" title="Runs on your machine. No key, no account, nothing uploaded.">Free</span></div>
+            <p class="route-note">Whisper, a local language model and OmniVoice. Nothing leaves your computer and nothing is charged.</p>
+            <p class="route-price">Coming soon</p>
+          </div>
+        </div>
+        <ol class="local-steps">
+          <li><b>Install</b> Python 3.12 and ffmpeg (Homebrew's <code>ffmpeg</code> has everything needed).</li>
+          <li><b>Add a key</b> for the Higgs route: put <code>BOSON_API_KEY=…</code> in a <code>.env</code> file.</li>
+          <li><b>Start it</b> with <code>./run.sh</code> and open <code>http://127.0.0.1:8910</code>.</li>
+        </ol>
+        <p class="oa-caption">The source release is coming soon.</p>
+      </div>
+
       <div class="recent" id="recent" hidden>
         <span class="oa-eyebrow">Recent</span>
         <ul id="recent-list"></ul>
@@ -235,8 +327,8 @@
 
 <footer class="site-footer">
   <div class="container">
-    <span class="brand-word small"><span class="muted">Open</span>Voice<span class="dot">.</span></span>
-    <span class="oa-caption">Open source. Speech, translation and voice by Higgs Audio from Boson AI; separation (Demucs), speech detection (Silero), timing (Whisper) and rendering (ffmpeg) run locally.</span>
+    <span class="brand-word small"><span class="muted">Open</span>Dub<span class="dot">.</span></span>
+    <span class="oa-caption"><a href="/privacy">Privacy</a> · Open source. Speech, translation and voice by Higgs Audio from Boson AI; separation (Demucs), speech detection (Silero), timing (Whisper) and rendering (ffmpeg) run locally.</span>
   </div>
 </footer>
 

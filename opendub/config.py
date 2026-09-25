@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-WORK_DIR = Path(os.environ.get("OPENVOICE_WORK_DIR", ROOT / "work"))
+WORK_DIR = Path(os.environ.get("OPENDUB_WORK_DIR", ROOT / "work"))
 
 
 def _load_dotenv() -> None:
@@ -26,11 +26,11 @@ _load_dotenv()
 
 BOSON_API_KEY = os.environ.get("BOSON_API_KEY", "").strip()
 BOSON_BASE_URL = os.environ.get("BOSON_BASE_URL", "https://api.boson.ai/v1").rstrip("/")
-STT_MODEL = os.environ.get("OPENVOICE_STT_MODEL", "higgs-stt-3.1")
-TTS_MODEL = os.environ.get("OPENVOICE_TTS_MODEL", "higgs-tts-3")
-LLM_MODEL = os.environ.get("OPENVOICE_LLM_MODEL", "higgs-realtime")
+STT_MODEL = os.environ.get("OPENDUB_STT_MODEL", "higgs-stt-3.1")
+TTS_MODEL = os.environ.get("OPENDUB_TTS_MODEL", "higgs-tts-3")
+LLM_MODEL = os.environ.get("OPENDUB_LLM_MODEL", "higgs-realtime")
 # Local Whisper supplies word timing only; Higgs supplies the words.
-WHISPER_MODEL = os.environ.get("OPENVOICE_WHISPER_MODEL", "small")
+WHISPER_MODEL = os.environ.get("OPENDUB_WHISPER_MODEL", "small")
 
 
 @dataclass(frozen=True)

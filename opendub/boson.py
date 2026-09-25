@@ -23,7 +23,7 @@ from . import config
 # *starts* are paced (not just capped in number), while up to three can be in
 # flight at once — a TTS call takes ~3 s, so overlap is where the speed is.
 _SLOTS = threading.BoundedSemaphore(3)
-_MIN_GAP = 1.0 / float(__import__("os").environ.get("OPENVOICE_RPS", "0.95"))
+_MIN_GAP = 1.0 / float(__import__("os").environ.get("OPENDUB_RPS", "0.95"))
 _next_start = [0.0]
 _pace_lock = threading.Lock()
 calls = {"ok": 0, "429": 0}  # for the job log
