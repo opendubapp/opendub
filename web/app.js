@@ -1,4 +1,4 @@
-// OpenVoice client: upload, poll, show, edit, re-dub. No framework — one page, three views.
+// OpenDub client: upload, poll, show, edit, re-dub. No framework — one page, three views.
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, attrs = {}, ...kids) => {
@@ -35,11 +35,26 @@ let edits = {};          // line id -> edited text
 let tones = {};          // line id -> edited tone
 let timings = {};        // line id -> [start, end] dragged on the timeline, or null to snap back
 let renderedVersion = null;
+// No backend (the public site): the page shows a finished demo dub from static
+// files under demo/, read-only, and explains how to run OpenDub yourself.
+let STATIC = false;
 
 // ---------------------------------------------------------------- boot
 
 async function boot() {
-  CFG = await (await fetch("/api/config")).json();
+  // The header's account control reflects the local session only (no round trip).
+  try { if (localStorage.getItem("openapps.session")) document.querySelector(".account-btn")?.classList.add("is-signed-in"); } catch {}
+  try {
+    // The public build marks itself, so it never probes for a server it knows is absent.
+    if (document.querySelector('meta[name="opendub-static"]')) throw new Error("static build");
+    const r = await fetch("/api/config");
+    if (!r.ok || !(r.headers.get("content-type") || "").includes("json")) throw new Error("no api");
+    CFG = await r.json();
+  } catch {
+    STATIC = true;
+    CFG = await (await fetch("demo/config.json")).json();
+    document.documentElement.classList.add("is-static");
+  }
   const remembered = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
   const src = $("#source"), tgt = $("#target");
   src.append(el("option", { value: "auto" }, "Detect automatically"));
@@ -47,6 +62,12 @@ async function boot() {
     const label = l.endonym === l.name ? l.name : `${l.endonym} — ${l.name}`;
     src.append(el("option", { value: l.code }, label));
     tgt.append(el("option", { value: l.code }, label));
+  }
+  // Free engines on this computer: installed ones offered, others shown and disabled.
+  for (const e of CFG.engines || []) {
+    if (e.id === "omnivoice" && $("#set-voice").querySelector('option[value="omnivoice"]')) $("#set-voice").querySelector('option[value="omnivoice"]').remove();
+    $("#set-voice").append(el("option", { value: e.id, disabled: !e.ready },
+      `Clone the speaker — ${e.name} (free${e.commercial ? "" : ", non-commercial"})${e.ready ? "" : " — not installed"}`));
   }
   for (const v of CFG.voices) $("#set-voice").append(el("option", { value: v.id }, v.label));
   for (const e of CFG.emotions) $("#set-tone").append(el("option", { value: e }, e === "neutral" ? "Neutral throughout" : `${e[0].toUpperCase()}${e.slice(1)} throughout`));
@@ -63,10 +84,15 @@ async function boot() {
   for (const [n, k] of [[src, "ov.source"], [tgt, "ov.target"]]) {
     n.addEventListener("change", () => { try { localStorage.setItem(k, n.value); } catch {} });
   }
-  $("#model-list").textContent = `${CFG.models.stt} · ${CFG.models.llm} · ${CFG.models.tts}`;
   if (!CFG.has_key) $("#new-hint").textContent = "The server has no BOSON_API_KEY — add it to .env and restart.";
   wireNew();
   wireResult();
+  if (STATIC) {
+    $("#view-local").hidden = false;
+    wireBrowserDub();
+    await poll("demo");
+    return;
+  }
   loadRecent();
   const id = new URLSearchParams(location.hash.slice(1)).get("job");
   if (id) openJob(id);
@@ -157,7 +183,7 @@ async function openJob(id) {
 async function poll(id) {
   let r;
   try {
-    r = await fetch(`/api/jobs/${id}`);
+    r = await fetch(STATIC ? "demo/job.json" : `/api/jobs/${id}`);
   } catch {
     pollTimer = setTimeout(() => poll(id), 2000);
     return;
@@ -174,7 +200,7 @@ async function poll(id) {
     if (job.status === "error") $("#res-eyebrow").textContent = `Re-dub failed: ${job.error}`;
   }
   if (busy) pollTimer = setTimeout(() => poll(id), 800);
-  else loadRecent();
+  else if (!STATIC) loadRecent();
 }
 
 function renderRun() {
@@ -191,7 +217,8 @@ function renderRun() {
     const li = el("li", { class: `stage is-${status}` });
     const icon = el("span", { class: "stage-icon" });
     icon.innerHTML = ICON[status] || ICON.pending;
-    li.append(icon, el("span", { class: "stage-label" }, s.label),
+    const note = status === "running" && job.stage === s.key && job.note ? ` — ${job.note}` : "";
+    li.append(icon, el("span", { class: "stage-label" }, s.label + note),
       el("span", { class: "stage-time" }, st.seconds != null ? `${st.seconds.toFixed(1)}s` : ""));
     if (status === "running" && job.stage === s.key && job.stage_progress > 0) {
       const bar = el("span", { class: "stage-bar" }, el("i"));
@@ -214,13 +241,15 @@ function renderRun() {
 // ---------------------------------------------------------------- result
 
 function fileUrl(name, download = false) {
+  if (/^(blob|data):/.test(name)) return name;   // a dub made in this tab
+  if (STATIC) return `demo/${name}`;
   return `/api/jobs/${job.id}/files/${name}?v=${job.result.version}${download ? "&download=1" : ""}`;
 }
 
 function renderResult() {
   const R = job.result;
   const lang = CFG.languages.find((l) => l.code === R.target);
-  $("#res-eyebrow").textContent = `Dubbed into ${R.target_name}`;
+  $("#res-eyebrow").textContent = R.local ? `Dubbed into ${R.target_name}, on this device` : `Dubbed into ${R.target_name}`;
   $("#res-title").textContent = job.filename;
   $("#dub-lang").textContent = R.target_endonym || (lang ? lang.endonym : R.target);
   $("#src-lang").textContent = R.source_endonym || R.source;
@@ -232,7 +261,8 @@ function renderResult() {
     $("#players").classList.toggle("is-portrait", portrait);
     const vs = $("#v-src"), vd = $("#v-dub");
     const t = vd.currentTime || 0;
-    vs.src = `/api/jobs/${job.id}/files/${job.source_file}`;
+    vs.src = /^blob:/.test(job.source_file) ? job.source_file
+      : STATIC ? `demo/${job.source_file}` : `/api/jobs/${job.id}/files/${job.source_file}`;
     vs.replaceChildren(el("track", { kind: "subtitles", srclang: R.source, label: R.source_name || R.source, default: true, src: fileUrl(R.files.source_subtitles_vtt) }));
     vd.src = fileUrl(R.files.video);
     if (t) vd.addEventListener("loadedmetadata", () => { vd.currentTime = t; }, { once: true });
@@ -258,7 +288,7 @@ function renderStats() {
   const stat = (b, s) => el("div", { class: "stat" }, el("b", {}, b), el("span", {}, s));
   $("#stats").replaceChildren(
     stat(String(L.length), "lines dubbed"),
-    stat(avg == null ? "—" : `${Math.round(avg * 100)}%`, "heard back correctly"),
+    stat(avg == null ? "—" : `${Math.round(avg * 100)}%`, avg == null ? "heard back: not checked in the browser" : "heard back correctly"),
     stat(`±${drift.toFixed(2)}s`, `average gap between the dub and the speaker finishing a line`),
     stat(clock(total), `to dub ${clock(R.duration)} of video${stretched.length ? ` · ${stretched.length} lines stretched` : ""}`),
   );
@@ -274,8 +304,8 @@ function renderTimeline() {
     return n;
   };
   const seek = (t) => () => { $("#v-dub").currentTime = t; $("#v-src").currentTime = t; };
-  const vad = el("div", { class: "tl-row tl-vad", title: "Speech found by Silero VAD" },
-    R.vad.map(([s, e]) => box(s, e, "", `speech ${fmt(s)}–${fmt(e)}`)));
+  const vad = R.vad.length ? el("div", { class: "tl-row tl-vad", title: "Speech found by Silero VAD" },
+    R.vad.map(([s, e]) => box(s, e, "", `speech ${fmt(s)}–${fmt(e)}`))) : null;
   const src = el("div", { class: "tl-row tl-src" },
     R.lines.map((l) => box(l.src_start, l.src_end, "", l.source, seek(l.src_start))));
   const dub = el("div", { class: "tl-row tl-dub" });
@@ -284,11 +314,12 @@ function renderTimeline() {
     const cls = [Math.abs(l.tempo - 1) > 0.1 ? "fast" : "", l.manual || timings[l.id] ? "manual" : ""].join(" ").trim();
     const b = box(span[0], span[1], cls, `${l.text}${Math.abs(l.tempo - 1) > 0.01 ? ` (${l.tempo}×)` : ""}`);
     b.dataset.id = l.id;
-    draggable(b, l, dub, D);
+    if (!STATIC) draggable(b, l, dub, D);
+    else b.addEventListener("click", seek(l.start));
     dub.append(b);
   }
   const head = el("i", { class: "tl-head", id: "tl-head" });
-  $("#timeline").replaceChildren(vad, src, dub, head);
+  $("#timeline").replaceChildren(...[vad, src, dub, head].filter(Boolean));
 }
 
 // Drag a dubbed block to move it; drag an edge to change its length. The take
@@ -368,7 +399,7 @@ function draggable(b, l, row, D) {
 
 function summarise() {
   const v = $("#set-voice"), t = $("#set-tone");
-  const parts = [v.value === "clone" ? "Cloned voice" : v.selectedOptions[0].textContent.split(" —")[0] + " (preset)",
+  const parts = [v.value === "clone" ? "Cloned voice" : (CFG.engines || []).some((e) => e.id === v.value) ? `${(CFG.engines.find((e) => e.id === v.value)).name} clone (free)` : v.selectedOptions[0].textContent.split(" —")[0] + " (preset)",
     t.value === "auto" ? "tone matched per line" : t.selectedOptions[0].textContent.toLowerCase()];
   if ($("#set-expressive").value !== "auto") parts.push($("#set-expressive").selectedOptions[0].textContent.toLowerCase());
   if ($("#set-pitch").value !== "natural") parts.push(`${$("#set-pitch").selectedOptions[0].textContent.toLowerCase()} pitch`);
@@ -393,7 +424,7 @@ function chipsFor(l) {
 function renderLines() {
   const R = job.result;
   $("#lines").replaceChildren(...R.lines.map((l) => {
-    const ta = el("textarea", { rows: 1, "aria-label": `Translation of line ${l.id + 1}`, lang: R.target });
+    const ta = el("textarea", { rows: 1, "aria-label": `Translation of line ${l.id + 1}`, lang: R.target, readonly: STATIC });
     ta.value = l.text;
     const mark = () => { li.classList.toggle("is-edited", l.id in edits || l.id in tones); updateRedubBar(); };
     ta.addEventListener("input", () => {
@@ -402,7 +433,7 @@ function renderLines() {
       mark();
     });
     const was = (l.tone && l.tone.emotion) || "neutral";
-    const sel = el("select", { class: `tone-select${was !== "neutral" ? " is-set" : ""}`, title: "How this line is delivered", "aria-label": `Tone of line ${l.id + 1}` },
+    const sel = el("select", { class: `tone-select${was !== "neutral" ? " is-set" : ""}`, title: "How this line is delivered", "aria-label": `Tone of line ${l.id + 1}`, disabled: STATIC },
       CFG.emotions.map((e) => el("option", { value: e, selected: e === was }, e === "neutral" ? "neutral tone" : e)));
     sel.addEventListener("change", () => {
       if (sel.value !== was) tones[l.id] = { ...(l.tone || { expressive: "normal", style: "none" }), emotion: sel.value };
@@ -427,14 +458,20 @@ function renderLines() {
 function renderDownloads() {
   const R = job.result, F = R.files;
   const lang = CFG.languages.find((l) => l.code === R.target);
-  const a = (name, label) => el("a", { class: "oa-btn oa-btn--secondary oa-btn--sm", href: fileUrl(name, true) }, label);
-  $("#downloads").replaceChildren(
+  const stem = (job.filename || "video").replace(/\.[^.]+$/, "");
+  const nice = { [F.video]: `${stem}.${R.target}.${R.extension || "mp4"}`, [F.audio]: `${stem}.${R.target}.wav`,
+    [F.subtitles]: `${stem}.${R.target}.srt`, [F.source_subtitles]: `${stem}.${R.source}.srt`, [F.reference]: `${stem}.voice-sample.wav` };
+  const a = (name, label) => el("a", { class: "oa-btn oa-btn--secondary oa-btn--sm", href: fileUrl(name, true),
+    download: STATIC ? (R.local ? nice[name] : name) : null }, label);
+  // filter(Boolean): replaceChildren turns a null into the text "null", so a
+  // dub with no separate audio track printed a bare null between the buttons.
+  $("#downloads").replaceChildren(...[
     a(F.video, "Dubbed video (MP4)"),
-    a(F.audio, "Dub audio (WAV)"),
+    F.audio && a(F.audio, "Dub audio (WAV)"),
     a(F.subtitles, `${R.target_endonym || R.target} subtitles (SRT)`),
     a(F.source_subtitles, `${R.source_endonym || R.source} subtitles (SRT)`),
-    a(F.reference, "Cloned voice sample"),
-  );
+    F.reference && a(F.reference, "Cloned voice sample"),
+  ].filter(Boolean));
 }
 
 function updateRedubBar() {
@@ -482,6 +519,7 @@ function wireResult() {
 }
 
 function resetNew() {
+  if (STATIC) { renderedVersion = null; job = null; poll("demo"); return; }
   clearTimeout(pollTimer);
   job = null;
   history.replaceState(null, "", location.pathname);
@@ -498,6 +536,184 @@ async function loadRecent() {
       el("a", { href: `#job=${j.id}`, onclick: (e) => { e.preventDefault(); location.hash = `job=${j.id}`; openJob(j.id); } },
         el("span", {}, j.filename), el("span", { class: "oa-caption" }, `${j.target} · ${new Date(j.created * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`)))));
   } catch { /* the list is a convenience */ }
+}
+
+// ---------------------------------------------------------------- dub here, in this tab (public site)
+
+let bfile = null;
+let bmodule = null;
+const loadBrowser = () => (bmodule ??= import("/browser/opendub-browser.js"));
+
+function wireBrowserDub() {
+  const form = $("#dub-here");
+  form.hidden = false;
+  const src = $("#bsource"), tgt = $("#btarget");
+  // The card is narrow: each language by its own name, the English one in the tooltip.
+  src.append(el("option", { value: "auto" }, "Auto-detect"));
+  for (const l of CFG.languages) {
+    src.append(el("option", { value: l.code, title: l.name }, l.endonym));
+    tgt.append(el("option", { value: l.code, title: l.name }, l.endonym));
+  }
+  tgt.value = CFG.default_target;
+
+  const drop = $("#bdrop"), input = $("#bfile");
+  const pick = (f) => {
+    if (!f) return;
+    bfile = f;
+    drop.classList.add("has-file");
+    $("#bdrop-title").textContent = f.name;
+    $("#bdrop-sub").textContent = `${(f.size / 1048576).toFixed(1)} MB — stays on this device`;
+    update();
+  };
+  input.addEventListener("change", () => pick(input.files[0]));
+  ["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("is-over"); }));
+  ["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("is-over"); }));
+  drop.addEventListener("drop", (ev) => pick(ev.dataTransfer.files[0]));
+
+  const PROVIDER_NAME = { higgs: "Higgs Audio", elevenlabs: "ElevenLabs" };
+  const PROVIDERS = {
+    local: { free: true },
+    higgs: { label: "Higgs Audio API key", note: "Used for this dub only and sent only to Boson AI. Never stored.", placeholder: "bai-…" },
+    elevenlabs: { label: "ElevenLabs API key", note: "Used for this dub only and sent only to ElevenLabs. Never stored.", placeholder: "sk_…" },
+  };
+  const provider = () => form.querySelector('input[name="bprovider"]:checked').value;
+  let omniReady = false;
+  function update() {
+    const id = provider(), p = PROVIDERS[id];
+    $("#bkey-wrap").hidden = !!p.free;
+    if (!p.free) {
+      $("#bkey-label").textContent = p.label;
+      $("#bkey-note").textContent = p.note;
+      $("#bkey").placeholder = p.placeholder;
+    }
+    $("#btkey-field").hidden = id === "higgs";
+    $("#btkey-note").textContent = id === "local"
+      ? "The engines on your computer speak but do not translate. Without a Higgs key, Chrome's built-in translator is used where available — free, and on this device."
+      : "ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.";
+    updateStart();
+  }
+
+  // A dead button reads as a broken site: someone chose the free route without
+  // the app running, clicked, and nothing happened. The button now always names
+  // the step that is missing — and where that step is finding the app on this
+  // computer, pressing it does exactly that.
+  let encodes = true;
+  function updateStart() {
+    const btn = $("#bstart"), p = PROVIDERS[provider()];
+    if (!encodes) return;  // the browser cannot make a video at all; that label stands
+    const set = (action, label, disabled) => {
+      btn.dataset.action = action;
+      btn.textContent = label;
+      btn.disabled = disabled;
+    };
+    if (p.free && !omniReady) return set("connect", "Look for the app on this computer", false);
+    if (!p.free && !$("#bkey").value.trim()) return set("dub", `Enter your ${PROVIDER_NAME[provider()]} key above`, true);
+    if (!bfile) return set("dub", "Choose a video first", true);
+    set("dub", "Dub on this device", false);
+  }
+
+  // The free voice lives in the OpenDub app on this computer. The page only
+  // looks for it when asked: probing localhost on load would put Chrome's
+  // "access other apps on this device" prompt in front of every visitor, and
+  // would contact an address outside the site for people who never chose it.
+  // Once someone has connected, Chrome remembers the permission and so do we.
+  const remember = (v) => { try { v ? localStorage.setItem("ov.omni", "1") : localStorage.removeItem("ov.omni"); } catch {} };
+  async function detect() {
+    const st = $("#bomni-status");
+    st.className = "omni-status";
+    st.textContent = "Looking for the OpenDub app on this computer…";
+    const m = await loadBrowser();
+    const s = await m.localAppStatus();
+    engines = s?.engines || (s?.omnivoice ? [{ id: "omnivoice", name: "OmniVoice", ready: true, commercial: false, exact_duration: true, note: "" }] : []);
+    omniReady = engines.some((e) => e.ready);
+    remember(omniReady);
+    if (omniReady) {
+      st.className = "omni-status is-ready";
+      st.textContent = "Connected to the OpenDub app on this computer.";
+      form.querySelector('input[value="local"]').checked = true;
+      fillEngines();
+    } else {
+      st.className = "omni-status is-missing";
+      st.replaceChildren(s ? "The OpenDub app is running but has no voice engine installed yet: " : "Start the OpenDub app on this computer (",
+        el("code", {}, s ? ".venv/bin/pip install omnivoice" : "./run.sh"), s ? ". " : "), then ",
+        el("button", { type: "button", onclick: detect }, "connect again"), ".");
+    }
+    update();
+  }
+  // Every engine the app knows, with its licence on the label; ones not installed
+  // here are shown but greyed, so people see what exists and why it is unavailable.
+  let engines = [];
+  function fillEngines() {
+    const sel = $("#bengine");
+    const prev = sel.value || (() => { try { return localStorage.getItem("ov.engine"); } catch { return null; } })();
+    sel.replaceChildren(...engines.map((e) => el("option", { value: e.id, disabled: !e.ready },
+      `${e.name} · ${e.commercial ? "commercial use OK" : "non-commercial"}${e.ready ? "" : /NVIDIA/.test(e.hardware || "") ? " — needs an NVIDIA GPU" : " — not installed"}`)));
+    const ready = engines.filter((e) => e.ready);
+    sel.value = ready.some((e) => e.id === prev) ? prev : ready[0]?.id;
+    $("#bengine-wrap").hidden = false;
+    noteEngine();
+  }
+  function noteEngine() {
+    const e = engines.find((x) => x.id === $("#bengine").value);
+    $("#bengine-note").textContent = e ? `${e.note} Licence: ${e.licence}.` : "";
+    try { localStorage.setItem("ov.engine", $("#bengine").value); } catch {}
+  }
+  $("#bengine").addEventListener("change", noteEngine);
+  $("#bomni-connect").addEventListener("click", (e) => { e.preventDefault(); detect(); });
+  form.querySelector('input[value="local"]').addEventListener("change", () => { if (!omniReady) detect(); });
+  let remembered = false;
+  try { remembered = localStorage.getItem("ov.omni") === "1"; } catch {}
+  if (remembered) detect();
+  update();
+  form.addEventListener("change", update);
+  $("#bkey").addEventListener("input", update);
+
+  // Offer on-device voice removal honestly: WebGPU makes it minutes, not tens of minutes.
+  loadBrowser().then(async (m) => {
+    const cap = await m.capabilities();
+    if (!cap.encode) {
+      encodes = false;
+      $("#bstart").textContent = "This browser cannot encode video";
+      $("#bstart").disabled = true;
+      $("#bdrop-sub").textContent = "Dubbing here needs Chrome, Edge or Safari 16.4+.";
+    }
+    if (!cap.webgpu) $("#bremove-note").textContent = "This browser has no WebGPU, so removing the voice runs on the CPU and can take a long time. Downloads a 172 MB separator once.";
+  }).catch(() => {});
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const btn = $("#bstart");
+    if (btn.dataset.action === "connect") return detect();
+    if (!bfile) return;
+    btn.disabled = true;
+    const opts = {
+      target: tgt.value, source: src.value, provider: provider(),
+      engine: $("#bengine").value || "omnivoice",
+      exactDuration: !!engines.find((e) => e.id === $("#bengine").value)?.exact_duration,
+      engineName: engines.find((e) => e.id === $("#bengine").value)?.name,
+      key: $("#bkey").value.trim(), translateKey: $("#btkey").value.trim() || null,
+      removeVoice: $("#bremove").checked, tone: true, burn: true,
+    };
+    const m = await loadBrowser();
+    let first = true;
+    const done = await m.dub(bfile, opts, (j) => {
+      job = j;
+      renderRun();
+      show("run");
+      if (first) { first = false; document.getElementById("app").scrollIntoView({ behavior: "smooth" }); }
+    });
+    updateStart();
+    job = done;
+    if (done.status === "done") {
+      renderedVersion = null;
+      renderResult();
+      show("result");
+      document.getElementById("app").scrollIntoView({ behavior: "smooth" });
+    } else {
+      renderRun();
+      show("run");
+    }
+  });
 }
 
 window.addEventListener("hashchange", () => {

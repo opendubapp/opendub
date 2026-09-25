@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy — OpenDub</title>
+<meta name="description" content="What OpenDub collects, what it never does, and where your videos go (nowhere)." />
+<link rel="canonical" href="https://opendub.app/privacy" />
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/icon-180.png" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="OpenDub" />
+<meta property="og:title" content="Privacy — OpenDub" />
+<meta property="og:description" content="What OpenDub collects, what it never does, and where your videos go." />
+<meta property="og:url" content="https://opendub.app/privacy" />
+<meta property="og:image" content="https://opendub.app/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://opendub.app/og-image.png" />
+<link rel="stylesheet" href="/vendor/tokens/styles.css" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="/" aria-label="OpenDub home">
+      <span class="brand-tile" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>
+      </span>
+      <span class="brand-word"><span class="muted">Open</span>Dub<span class="dot">.</span></span>
+    </a>
+    <nav class="site-nav" aria-label="Primary"><a href="/#how">How it works</a></nav>
+    <div class="header-actions">
+      <a class="oa-btn oa-btn--primary oa-btn--sm" href="/#app">Open the app</a>
+      <a class="account-btn" href="/account" aria-label="Account" title="Account">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <article class="doc">
+    <h1>Privacy.</h1>
+    <p>Last updated 21 September 2026. This page describes opendub.app and the OpenDub app you run on your own computer.</p>
+
+    <h2>What is never collected</h2>
+    <p>Your videos. OpenDub dubs them on your own device — in this browser tab, or in the app on your computer — and this website has no way to receive one: it has no upload endpoint, no backend for dubbing, and no analytics. It sets no cookies and loads no script from anyone else.</p>
+
+    <h2>What is stored on your device</h2>
+    <ul>
+      <li>This website remembers your language and voice choices in your browser's local storage. It never stores an API key.</li>
+      <li>A dub made in this tab exists only in the tab's memory until you download it; closing the tab discards it.</li>
+      <li>If you sign in, your session is kept in local storage too, so you stay signed in.</li>
+      <li>The OpenDub app keeps your jobs — the video, the audio it separates, the transcript and the dub — in a <code>work</code> folder on your computer. Delete it whenever you like.</li>
+    </ul>
+
+    <h2>What leaves your device when you dub</h2>
+    <p>Only to the voice model you choose, with your own API key, straight from your browser or the app: the speech from your video (to transcribe it, and a clip of it to clone the voice), and the text of each line (to translate it and speak it). With Higgs Audio that is Boson AI; with ElevenLabs it is ElevenLabs, and a temporary cloned voice is deleted from your ElevenLabs account when the dub finishes. The video file itself is never sent. Your key is kept in memory for that one dub, sent only to that provider, and never stored. Each provider's own privacy policy covers what they do with what they receive.</p>
+    <p>If you dub with a free engine on your computer (OmniVoice, Chatterbox, CosyVoice 2 and others), the OpenDub app downloads that model once from Hugging Face and then runs it with nothing sent anywhere; this page talks to the app on your own computer only, at 127.0.0.1.</p>
+    <p>The first time you dub here, your browser downloads the speech-timing model (Whisper) and, if you ask for the original voice to be removed, a voice separator, from Hugging Face. They are cached by your browser; nothing of yours is sent to download them.</p>
+
+    <h2>Data used only if you sign in</h2>
+    <p>Signing in is optional and unlocks nothing in OpenDub. If you do, our account server stores how you signed in (for example the email address Google shares, or a wallet address), your credit balance, your purchases, and what credits were spent on in our other apps.</p>
+
+    <h2>Payments</h2>
+    <p>Credits are bought through the payment provider you choose. We never see or store card numbers.</p>
+
+    <h2>Third parties</h2>
+    <p>Google, a wallet or a Nostr signer, only if you choose them to sign in. Boson AI or ElevenLabs, only if you dub with them using your own key. Hugging Face, for the one-time model downloads. Nobody else.</p>
+
+    <h2>Deleting your data</h2>
+    <p>Your dubs are files on your computer; delete them there. To delete your account and everything the account server holds, email us and we will remove it.</p>
+
+    <h2>Children</h2>
+    <p>OpenDub is not directed at children under 13, and we do not knowingly hold data about them.</p>
+
+    <h2>Changes</h2>
+    <p>If this changes, the date at the top changes with it.</p>
+
+    <h2>Contact</h2>
+    <p><a href="mailto:opentoolkitsg@gmail.com">opentoolkitsg@gmail.com</a></p>
+  </article>
+</main>
+</body>
+</html>

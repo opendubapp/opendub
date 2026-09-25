@@ -1,17 +1,16 @@
-# OpenVoice
+# OpenDub
 
 **Your video, in any language, in your own voice.**
 
 Upload a video and get it back dubbed into another language. The dub uses a
 clone of the speaker's own voice, each line is timed to their lips and said in
-the tone they used, and subtitles in the new language are burned in. Built on
-**Higgs Audio** from Boson AI.
+the tone they used, and subtitles in the new language are burned in.
 
 - **Open source.** Every step is plain Python and JavaScript you can read, run
-  and replace.
+  and replace. AGPL-3.0.
 - **Local-first.** Voice separation, speech detection, word timing, mixing and
-  rendering run on your machine, and the video file never leaves it. Only
-  speech clips and text are sent, to the Higgs Audio API.
+  rendering run on your machine, and the video file never leaves it. With a
+  free voice engine on your computer, nothing leaves it at all.
 - **Powerful.** It clones the voice, reads the tone of each line, times every
   line to the speaker, and lets you edit, re-tone or drag any line and re-dub
   it in about 10 seconds.
@@ -19,11 +18,21 @@ the tone they used, and subtitles in the new language are burned in. Built on
 The demo dubs English into Simplified Chinese. The spoken language is detected
 automatically, and there are 17 languages to dub into.
 
+## Three ways to run it
+
+| | Where it runs | Voice | What you need |
+|---|---|---|---|
+| **The app on your computer** | your machine | a free engine on your machine, or Higgs Audio | Python and ffmpeg |
+| **opendub.app in your browser** | your browser tab | your own Higgs Audio or ElevenLabs key, or the app on your computer | a browser with WebCodecs |
+| **Headless** | your machine | either | Python and ffmpeg |
+
+The video file itself never leaves your device in any of them.
+
 ## Quick start
 
 ```bash
-git clone https://github.com/kohdejian/openvoice && cd openvoice
-echo "BOSON_API_KEY=bai-your-key" > .env     # from boson.ai
+git clone https://github.com/opendubapp/opendub && cd opendub
+echo "BOSON_API_KEY=bai-your-key" > .env     # from boson.ai; not needed for a free engine
 ./run.sh                                     # http://127.0.0.1:8910
 ```
 
@@ -40,8 +49,8 @@ The first run downloads the Demucs model (about 80 MB) and Whisper `small`
 Headless:
 
 ```bash
-.venv/bin/python -m openvoice.pipeline video.mp4 --to zh-Hans           # source auto-detected
-.venv/bin/python -m openvoice.pipeline video.mp4 --from en --to ja --mode voiceover
+.venv/bin/python -m opendub.pipeline video.mp4 --to zh-Hans           # source auto-detected
+.venv/bin/python -m opendub.pipeline video.mp4 --from en --to ja --mode voiceover
 ```
 
 ## What the app does
@@ -79,6 +88,32 @@ Several rules come from our [OpenSubs](https://opensubs.app) project:
 Chinese lines break at word boundaries (jieba), and Chinese output is forced
 into the requested script (zhconv).
 
+## Voices
+
+Higgs Audio speaks every line by default. Free engines run on your own machine
+instead, and each lives in its own environment under `engines/` because they
+pin conflicting versions of torch; the app drives them as worker processes and
+offers one only after its setup script has made it speak.
+
+| Engine | Licence | Commercial use | Hardware | Sets a line's length |
+|---|---|---|---|---|
+| **Higgs Audio** (Boson AI) | API, your own key | per Boson's terms | none — an API | no, fitted afterwards |
+| **ElevenLabs** | API, your own key | per ElevenLabs' terms | none — an API | no |
+| **OmniVoice** (k2-fsa) | code Apache-2.0, weights CC-BY-NC | no | CPU or Apple GPU | **yes** |
+| **Chatterbox Multilingual** (Resemble AI) | MIT | yes, clips are watermarked | Apple GPU, NVIDIA or CPU | no |
+| **CosyVoice 2** (Alibaba) | Apache-2.0 | yes | NVIDIA recommended | no |
+| **VoxCPM2** (OpenBMB) | Apache-2.0 | yes | NVIDIA 8 GB+ | no |
+| **IndexTTS-2** (Bilibili) | to be confirmed | not until confirmed | NVIDIA recommended | not wired |
+
+```bash
+.venv/bin/pip install omnivoice        # OmniVoice runs inside the app
+engines/chatterbox/setup.sh            # the others each build their own environment
+```
+
+Only OmniVoice generates a line at an exact length; the rest are fitted to the
+speaker's span the same way Higgs lines are. `engines/README.md` has the
+details, and the last two are written but untested by us.
+
 ## Performance
 
 Measured on an M1 Max for the 74-second demo video:
@@ -90,7 +125,7 @@ Measured on an M1 Max for the 74-second demo video:
 
 A dub makes about 70 Higgs calls. The client paces them to the key's rate
 limit, so a busy key slows a job down rather than failing it. To match a
-higher limit, set `OPENVOICE_RPS` in `.env`.
+higher limit, set `OPENDUB_RPS` in `.env`.
 
 ## Configuration (`.env`)
 
@@ -98,15 +133,15 @@ higher limit, set `OPENVOICE_RPS` in `.env`.
 |---|---|---|
 | `BOSON_API_KEY` | — | required |
 | `BOSON_BASE_URL` | `https://api.boson.ai/v1` | |
-| `OPENVOICE_RPS` | `0.95` | Higgs requests per second |
-| `OPENVOICE_STT_MODEL` / `_TTS_MODEL` / `_LLM_MODEL` | `higgs-stt-3.1` / `higgs-tts-3` / `higgs-realtime` | |
-| `OPENVOICE_WHISPER_MODEL` | `small` | local timing model |
-| `OPENVOICE_WORK_DIR` | `./work` | jobs and outputs |
+| `OPENDUB_RPS` | `0.95` | Higgs requests per second |
+| `OPENDUB_STT_MODEL` / `_TTS_MODEL` / `_LLM_MODEL` | `higgs-stt-3.1` / `higgs-tts-3` / `higgs-realtime` | |
+| `OPENDUB_WHISPER_MODEL` | `small` | local timing model |
+| `OPENDUB_WORK_DIR` | `./work` | jobs and outputs |
 
 ## Layout
 
 ```
-openvoice/
+opendub/
   pipeline.py   stages, job state, re-dub, CLI
   server.py     FastAPI: upload, status, files, re-dub
   boson.py      Higgs client: STT, chat, TTS, pacing and retries
@@ -116,14 +151,20 @@ openvoice/
   dub.py        reference clip, speak, check, fit, place, mix
   subtitles.py  cues, CJK wrapping, SRT, VTT, ASS
   media.py      ffmpeg, Demucs, stretching, rendering
+  engines.py    free engines on this computer, driven as worker processes
+  omni.py       OmniVoice, in this app's own process
+engines/        one folder per free engine: worker.py, setup.sh, its own venv
+browser/        the in-browser dub (Vite): mediabunny, jassub, transformers.js
 web/            the page (index.html, app.js, styles.css, design tokens)
-tests/e2e.mjs   Playwright: upload → dub → align check → edit, tone and drag → re-dub
+scripts/        build and deploy opendub.app
+tests/          Playwright: e2e.mjs, card.mjs, site.mjs, account.mjs, browser-dub.mjs
 ```
 
 ## Tests
 
 ```bash
-PLAYWRIGHT_FROM=/path/to/node_modules/ node tests/e2e.mjs video.mp4
+PLAYWRIGHT_FROM=/path/to/node_modules/ node tests/e2e.mjs video.mp4   # a real dub, end to end
+PLAYWRIGHT_FROM=/path/to/node_modules/ node tests/card.mjs            # the dub card and the file row
 ```
 
 The test runs a real dub in a real browser. It asserts that every line starts
@@ -133,10 +174,15 @@ drags a block and re-dubs, and checks the page has no horizontal scroll at
 
 ## Credits
 
-Speech, translation and voice by **Higgs Audio** (Boson AI). Voice separation
+Speech, translation and voice by **Higgs Audio** (Boson AI), with free
+alternatives listed under *Voices*. Voice separation
 by [Demucs](https://github.com/facebookresearch/demucs), speech detection by
 [Silero VAD](https://github.com/snakers4/silero-vad), and word timing by
 [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Rendering uses
 ffmpeg with libass and rubberband.
 
 Only clone voices you have the rights to use.
+
+## Licence
+
+AGPL-3.0. See `LICENSE`.

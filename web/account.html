@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Account — OpenDub</title>
+<meta name="description" content="Your account across our apps. OpenDub itself needs none: every dub runs on your own machine." />
+<meta name="robots" content="noindex" />
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/icon-180.png" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="OpenDub" />
+<meta property="og:title" content="Account — OpenDub" />
+<meta property="og:description" content="Your account across our apps. OpenDub itself needs none." />
+<meta property="og:url" content="https://opendub.app/account" />
+<meta property="og:image" content="https://opendub.app/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://opendub.app/og-image.png" />
+<link rel="stylesheet" href="/vendor/tokens/styles.css" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="/" aria-label="OpenDub home">
+      <span class="brand-tile" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>
+      </span>
+      <span class="brand-word"><span class="muted">Open</span>Dub<span class="dot">.</span></span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="/#how">How it works</a>
+    </nav>
+    <div class="header-actions">
+      <a class="oa-btn oa-btn--primary oa-btn--sm" href="/#app">Open the app</a>
+      <a class="account-btn" href="/account" aria-label="Account" title="Account" aria-current="page">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main class="account-page">
+  <div class="container">
+    <h1>Your account.</h1>
+    <p class="lede">OpenDub needs no account. Every dub runs on your own machine, so there is nothing here to unlock and nothing to pay for.</p>
+
+    <div class="account-facts">
+      <div><h3>Free to use</h3><p>Signing in changes nothing in OpenDub. It only carries one balance across our apps.</p></div>
+      <div><h3>Private</h3><p>Your videos are never uploaded here. The account knows your sign-in, your balance and what it was spent on — nothing else.</p></div>
+    </div>
+
+    <p class="oa-caption" id="account-status">Loading…</p>
+    <div class="account-panel" id="account-panel" hidden>
+      <openapps-login
+        variant="panel"
+        mark="∿"
+        heading="Sign in to OpenDub"
+        description="One account across our apps. You do not need it here — nothing in OpenDub is behind it."
+      ></openapps-login>
+      <div id="signed-in" hidden>
+        <openapps-credits poll-seconds="30"></openapps-credits>
+        <openapps-buy></openapps-buy>
+        <openapps-history></openapps-history>
+        <openapps-signout></openapps-signout>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <span class="brand-word small"><span class="muted">Open</span>Dub<span class="dot">.</span></span>
+    <span class="oa-caption"><a href="/privacy">Privacy</a></span>
+  </div>
+</footer>
+<script src="/account.js" type="module"></script>
+</body>
+</html>

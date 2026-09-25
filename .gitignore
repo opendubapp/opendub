@@ -10,3 +10,12 @@ __pycache__/
 *.webm
 *.mkv
 *.pdf
+dist/
+engines/*/.venv/
+engines/*/repo/
+engines/*/models/
+engines/*/.ready
+engines/*/*.log
+engines/*/req.txt
+# the in-browser app is built from browser/ (npm ci && npm run build)
+web/browser/

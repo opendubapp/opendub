@@ -1,6 +1,6 @@
 """Video in, dubbed video out. Usable from the web server or the command line:
 
-    python -m openvoice.pipeline input.mp4 --to zh-Hans
+    python -m opendub.pipeline input.mp4 --to zh-Hans
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import asr, boson, config, dub, media, subtitles, tone, translate
+from . import engines as _engines
 
 STAGES = [
     ("probe", "Read the video"),
@@ -163,14 +164,18 @@ class Job:
         self.end("translate")
 
         self.begin("voice")
-        if opt.voice == "clone":
+        from . import engines as free_engines
+        local = opt.voice in free_engines.CATALOG
+        if opt.voice == "clone" or local:
             ref, ref_text, ref_span = dub.reference(segs, vocals, w)
-            self.log(f"Cloning from {ref_span[0]:.1f}–{ref_span[1]:.1f}s: “{ref_text[:80]}…”")
+            who = f"{free_engines.CATALOG[opt.voice].name} on this computer (free)" if local else "Higgs"
+            self.log(f"Cloning with {who} from {ref_span[0]:.1f}–{ref_span[1]:.1f}s: “{ref_text[:80]}…”")
         else:
             ref, ref_text, ref_span = None, "", None
             self.log(f"Speaking with the Higgs preset voice “{opt.voice}”")
         spk = dub.Speaker(ref=ref, ref_text=ref_text,
-                          voice=None if opt.voice == "clone" else opt.voice, normalize=opt.normalize)
+                          voice=None if opt.voice == "clone" or opt.voice in _engines.CATALOG else opt.voice,
+                          normalize=opt.normalize, engine=opt.voice if opt.voice in _engines.CATALOG else "higgs")
         dub.synthesise(lines, w, lang, spk, qa=opt.qa, log=self.log,
                        progress=self.progress)
         self.end("voice")
@@ -304,7 +309,7 @@ class Job:
                 meta = {"source": res["transcript_source"], "vad": res["vad"], "removed": res["removed"],
                         "language": res["source"]}
                 r0 = res.get("reference")
-                ref = Path(it["ref"]) if it.get("ref") else None
+                ref = Path(it["ref"]) if it.get("ref") else None  # also OmniVoice's reference
                 self._finish(Path(it["video"]), opt, it["info"], segs, lines, meta,
                              Path(it["vocals"]), Path(it["background"]), ref,
                              (r0 or {}).get("text", ""), (r0["start"], r0["end"]) if r0 else None)
@@ -315,10 +320,11 @@ class Job:
             self.log(f"Re-dubbing {len(changed)} edited line(s)")
             self.begin("voice")
             # A person chose these words: time-stretch if needed, never re-say them.
-            ref = Path(it["ref"]) if it.get("ref") else None
+            ref = Path(it["ref"]) if it.get("ref") else None  # also OmniVoice's reference
             ref_text = (res.get("reference") or {}).get("text", "")
             spk = dub.Speaker(ref=ref, ref_text=ref_text,
-                              voice=None if opt.voice == "clone" else opt.voice, normalize=opt.normalize)
+                              voice=None if opt.voice == "clone" or opt.voice in _engines.CATALOG else opt.voice,
+                          normalize=opt.normalize, engine=opt.voice if opt.voice in _engines.CATALOG else "higgs")
             dub.synthesise(lines, self.work, lang, spk,
                            qa=opt.qa, only=changed, allow_resize=False, log=self.log,
                            progress=self.progress)
