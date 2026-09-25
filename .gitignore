@@ -19,3 +19,5 @@ engines/*/*.log
 engines/*/req.txt
 # the in-browser app is built from browser/ (npm ci && npm run build)
 web/browser/
+installer/*/build/
+installer/macos/AppIcon.icns
