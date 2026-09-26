@@ -46,6 +46,8 @@ const (
 	port = 8910
 )
 
+const version = "1.0.1"
+
 var (
 	rootDir   string // %LOCALAPPDATA%\OpenDub
 	binDir    string // …\bin      — uv lives here
@@ -54,6 +56,7 @@ var (
 	venvDir   string // …\app\.venv
 	pythonExe string // …\app\.venv\Scripts\python.exe
 	uvicorn   string // …\app\.venv\Scripts\uvicorn.exe
+	logPath   string // …\opendub.log — every line, so a failure can be sent to us
 )
 
 func setPaths() error {
@@ -70,6 +73,7 @@ func setPaths() error {
 	venvDir = filepath.Join(appDir, ".venv")
 	pythonExe = filepath.Join(venvDir, "Scripts", "python.exe")
 	uvicorn = filepath.Join(venvDir, "Scripts", "uvicorn.exe")
+	logPath = filepath.Join(rootDir, "opendub.log")
 	return nil
 }
 
@@ -155,6 +159,45 @@ func note(line string) {
 	state.Lock()
 	state.lastLine = line
 	state.Unlock()
+	logLine(line)
+}
+
+// logLine appends to %LOCALAPPDATA%\OpenDub\opendub.log. Keeping only the last
+// line in memory left the first Windows tester with nothing to send back when
+// it failed, which is how a five-minute diagnosis becomes a day of guessing.
+// logDiagnostics writes what a reader of the log would otherwise have to ask
+// for: which build, which machine, and whether the pieces are actually there.
+func logDiagnostics() {
+	logLine("---- OpenDub " + version + " starting ----")
+	logLine(fmt.Sprintf("windows/%s, %d CPUs", runtime.GOARCH, runtime.NumCPU()))
+	for _, p := range []struct{ what, path string }{
+		{"root", rootDir}, {"uv", uvExe}, {"python", pythonExe}, {"uvicorn", uvicorn},
+	} {
+		if info, err := os.Stat(p.path); err == nil {
+			logLine(fmt.Sprintf("%-8s %s (%d bytes)", p.what, p.path, info.Size()))
+		} else {
+			logLine(fmt.Sprintf("%-8s %s — MISSING", p.what, p.path))
+		}
+	}
+}
+
+var logMu sync.Mutex
+
+func logLine(line string) {
+	if logPath == "" {
+		return
+	}
+	logMu.Lock()
+	defer logMu.Unlock()
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return
+	}
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s  %s\r\n", time.Now().Format("15:04:05"), line)
 }
 
 func lastLine() string {
@@ -535,8 +578,17 @@ var (
 
 func startServer() {
 	setState(phaseWorking, "Starting…", "", -1)
+	logDiagnostics()
 
-	cmd := exec.Command(uvicorn, "opendub.server:app", "--host", "127.0.0.1", "--port", fmt.Sprint(port))
+	// The console script is the normal way in. If it is missing — a venv moved,
+	// a half-finished install — the module is still there, so try that rather
+	// than failing with nothing to say.
+	exe, args := uvicorn, []string{"opendub.server:app", "--host", "127.0.0.1", "--port", fmt.Sprint(port)}
+	if _, err := os.Stat(uvicorn); err != nil {
+		exe, args = pythonExe, append([]string{"-m", "uvicorn"}, args...)
+		logLine("uvicorn.exe is missing; starting with python -m uvicorn instead")
+	}
+	cmd := exec.Command(exe, args...)
 	cmd.Dir = appDir
 	cmd.SysProcAttr = hidden()
 	stdout, _ := cmd.StdoutPipe()
@@ -550,21 +602,64 @@ func startServer() {
 	server = cmd
 	serverMu.Unlock()
 	adoptIntoJob(cmd)
-	go scanLines(stdout, note)
-	go scanLines(stderr, note)
+	// Wait must not run while the pipes are still being read, or the last lines
+	// — the ones that say why it stopped — are lost to a closed pipe.
+	var readers sync.WaitGroup
+	readers.Add(2)
+	go func() { defer readers.Done(); scanLines(stdout, note) }()
+	go func() { defer readers.Done(); scanLines(stderr, note) }()
 
-	// Wait for it to answer rather than assuming it did.
-	for i := 0; i < 60; i++ {
-		time.Sleep(500 * time.Millisecond)
+	// Wait for it to answer rather than assuming it did. Three minutes, not
+	// thirty seconds: on a cold Windows machine the antivirus scans every DLL
+	// as Python first loads it, and the first import of numpy, soundfile and
+	// fastapi out of a freshly written folder is genuinely slow. Thirty seconds
+	// was our first tester's whole failure.
+	exited := make(chan error, 1)
+	go func() {
+		readers.Wait()
+		exited <- cmd.Wait()
+	}()
+
+	started := time.Now()
+	for {
+		select {
+		case <-exited:
+			// It stopped by itself, so waiting longer is pointless: say so, and
+			// hand over the last thing it printed and where the rest of it is.
+			setState(phaseFailed, "OpenDub stopped while starting.",
+				detailWithLog(fmt.Sprintf("It ran for %d seconds and then stopped. Last line: %s",
+					int(time.Since(started).Seconds()), lastLine())), -1)
+			return
+		case <-time.After(500 * time.Millisecond):
+		}
 		if healthy() {
 			setState(phaseRunning, "OpenDub is running on this PC.",
 				"Go to opendub.app, choose the free voice, and press “Look for the app on this computer”.", -1)
+			logLine("health: answering on 127.0.0.1:" + fmt.Sprint(port))
 			openSite()
 			return
 		}
+		waited := int(time.Since(started).Seconds())
+		if waited >= 180 {
+			break
+		}
+		if waited > 10 {
+			// Say the seconds out loud, so a slow machine does not look stuck.
+			setState(phaseWorking, "Starting…",
+				fmt.Sprintf("Still starting, %d seconds in. The first start is the slow one — Windows scans each file as it is read.", waited), -1)
+		}
 	}
 	setState(phaseFailed, "OpenDub started but did not answer.",
-		because("It was still silent on 127.0.0.1:8910 after 30 seconds.").Error(), -1)
+		detailWithLog("It was still silent on 127.0.0.1:8910 after three minutes. Last line: "+lastLine()), -1)
+}
+
+// detailWithLog puts the log's path in the message: without it, someone hitting
+// this has nothing to send us but a screenshot of one sentence.
+func detailWithLog(detail string) string {
+	if logPath == "" {
+		return detail
+	}
+	return detail + "  The whole log is in " + logPath
 }
 
 var health = &http.Client{Timeout: 2 * time.Second}
