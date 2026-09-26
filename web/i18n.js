@@ -54,6 +54,7 @@ const CATALOGUE = {
       "这台电脑上没有响应。",
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "浏览器阻止了本页访问你的电脑。请在地址栏的图标里允许，然后再按一次。",
+    "Downloading the translation pack… {pct}%": "正在下载翻译语言包… {pct}%",
   },
   "zh-Hant": {
     "Look for the app on this computer": "在這台電腦上尋找應用程式",
@@ -95,6 +96,7 @@ const CATALOGUE = {
       "這台電腦上沒有回應。",
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "瀏覽器阻擋了本頁存取你的電腦。請在網址列的圖示中允許，然後再按一次。",
+    "Downloading the translation pack… {pct}%": "正在下載翻譯語言包… {pct}%",
   },
   ja: {
     "Look for the app on this computer": "このパソコンでアプリを探す",
@@ -136,6 +138,7 @@ const CATALOGUE = {
       "このパソコンからは応答がありませんでした。",
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "ブラウザがこのページからパソコンへの接続をブロックしています。アドレスバーのアイコンから許可して、もう一度押してください。",
+    "Downloading the translation pack… {pct}%": "翻訳パックをダウンロード中… {pct}%",
   },
   ko: {
     "Look for the app on this computer": "이 컴퓨터에서 앱 찾기",
@@ -177,6 +180,7 @@ const CATALOGUE = {
       "이 컴퓨터에서 응답이 없었습니다.",
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "브라우저가 이 페이지의 컴퓨터 접근을 막고 있습니다. 주소창의 아이콘에서 허용한 뒤 다시 누르세요.",
+    "Downloading the translation pack… {pct}%": "번역 팩 내려받는 중… {pct}%",
   },
   de: {
     "Look for the app on this computer": "Nach der App auf diesem Computer suchen",
@@ -218,6 +222,7 @@ const CATALOGUE = {
       "Auf diesem Computer hat nichts geantwortet.",
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "Ihr Browser blockiert den Zugriff dieser Seite auf Ihren Computer. Erlauben Sie ihn über das Symbol in der Adressleiste und drücken Sie erneut.",
+    "Downloading the translation pack… {pct}%": "Übersetzungspaket wird geladen… {pct} %",
   },
   es: {
     "Look for the app on this computer": "Buscar la app en este ordenador",
@@ -259,6 +264,7 @@ const CATALOGUE = {
       "Nada respondió en este ordenador.",
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "El navegador impide que esta página llegue a tu ordenador. Permítelo desde el icono de la barra de direcciones y vuelve a pulsar.",
+    "Downloading the translation pack… {pct}%": "Descargando el paquete de traducción… {pct} %",
   },
   pt: {
     "Look for the app on this computer": "Procurar o aplicativo neste computador",
@@ -300,6 +306,7 @@ const CATALOGUE = {
       "Nada respondeu neste computador.",
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "O navegador está impedindo esta página de acessar seu computador. Permita pelo ícone na barra de endereços e clique de novo.",
+    "Downloading the translation pack… {pct}%": "Baixando o pacote de tradução… {pct}%",
   },
 };
 

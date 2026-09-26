@@ -18,6 +18,34 @@ const TOLERANCE = 1.15, MAX_SECONDS = 300;
  *         removeVoice, tone, burn }
  * emit(state): the job object the page renders, after every change.
  */
+/**
+ * Chrome will only start downloading a language pack while a click is still
+ * fresh, and by the time we get here the video has been read, separated and
+ * transcribed — half a minute after the press. So the page hands us a
+ * translator it asked for during the click, and we use it when it matches the
+ * language we actually heard. When it does not, creating one here works only
+ * if the pack is already on the machine; if it is not, say what to do rather
+ * than reporting the browser's own sentence about gestures.
+ */
+async function builtInTranslator(prepared, source, target, log) {
+  if (prepared) {
+    try {
+      const tr = await prepared;
+      if (tr && tr.sourceLanguage === source && tr.targetLanguage === target.iso) return tr;
+    } catch { /* fall through and try for the language we actually heard */ }
+  }
+  try {
+    return await self.Translator.create({ sourceLanguage: source, targetLanguage: target.iso });
+  } catch (e) {
+    if (/gesture/i.test(String(e && e.message))) {
+      const name = core.language(source)?.name || source;
+      log(`Chrome has no ${name} → ${target.name} pack yet`);
+      throw new Error(`Chrome needs to download its ${name} → ${target.name} translation pack, and it will only start that from a click. Set “Spoken in” to ${name} and press Dub again, or add a Higgs key to translate instead.`);
+    }
+    throw e;
+  }
+}
+
 export async function dub(file, opts, emit) {
   const created = Date.now() / 1000;
   const job = { id: "browser", filename: file.name, status: "running", stage: "", stage_progress: 0, stages: {}, log: [], created, options: opts, result: null };
@@ -88,7 +116,7 @@ export async function dub(file, opts, emit) {
     if (chatter) {
       texts = await translateWithChat(chatter, segs, target, sourceName, log);
     } else if ("Translator" in self) {
-      const tr = await self.Translator.create({ sourceLanguage: lang || "en", targetLanguage: target.iso });
+      const tr = await builtInTranslator(opts.translator, lang || "en", target, log);
       texts = []; for (const s of segs) texts.push(await tr.translate(s.text));
       log("Translated by this browser's built-in translator (no length budget)");
     } else {

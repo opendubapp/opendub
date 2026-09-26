@@ -766,11 +766,38 @@ function wireBrowserDub() {
     if (!cap.webgpu) $("#bremove-note").textContent = "This browser has no WebGPU, so removing the voice runs on the CPU and can take a long time. Downloads a 172 MB separator once.";
   }).catch(() => {});
 
+
+  // Chrome only starts a language-pack download while a click is still fresh.
+  // The pipeline needs the translator half a minute later, by which time the
+  // press has expired, so ask for it here — inside the handler — and hand the
+  // promise on. With "Auto-detect" we cannot know the language yet, so we ask
+  // for English, which is what most uploads are; if the video turns out to be
+  // something else the pipeline says so plainly.
+  function prepareTranslator() {
+    const p = provider();
+    const needs = p !== "higgs" && !$("#btkey").value.trim();
+    if (!needs || !("Translator" in window)) return null;
+    const source = src.value === "auto" ? "en" : (CFG.languages.find((l) => l.code === src.value)?.iso || src.value);
+    const targetIso = CFG.languages.find((l) => l.code === tgt.value)?.iso || tgt.value;
+    if (source === targetIso) return null;
+    try {
+      return window.Translator.create({
+        sourceLanguage: source,
+        targetLanguage: targetIso,
+        monitor: (m) => m.addEventListener("downloadprogress", (e) => {
+          const pct = Math.round((e.loaded || 0) * 100);
+          $("#bdrop-sub").textContent = t("Downloading the translation pack… {pct}%", { pct });
+        }),
+      });
+    } catch { return null; }   // not available here; the pipeline will say so
+  }
+
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const btn = $("#bstart");
     if (btn.dataset.action === "connect") return detect();
     if (!bfile) return;
+    const translator = prepareTranslator();   // while the click still counts
     btn.disabled = true;
     const opts = {
       target: tgt.value, source: src.value, provider: provider(),
@@ -779,6 +806,7 @@ function wireBrowserDub() {
       engineName: engines.find((e) => e.id === $("#bengine").value)?.name,
       key: $("#bkey").value.trim(), translateKey: $("#btkey").value.trim() || null,
       removeVoice: $("#bremove").checked, tone: true, burn: true,
+      translator,
     };
     const m = await loadBrowser();
     let first = true;
