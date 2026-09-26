@@ -21,3 +21,4 @@ engines/*/req.txt
 web/browser/
 installer/*/build/
 installer/macos/AppIcon.icns
+browser/node_modules/
