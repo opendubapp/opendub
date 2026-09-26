@@ -5,6 +5,7 @@ line's length. LICENCE TO BE CONFIRMED before it is offered to users. The API
 follows the repository's IndexTTS2.infer(); length control is not wired until
 we have verified its parameter. UNVERIFIED by us.
 """
+import shutil
 import sys
 import tempfile
 import wave
@@ -25,11 +26,17 @@ def load():
 
 
 def speak(model, text, ref, ref_text, duration, language):
-    with tempfile.NamedTemporaryFile(suffix=".wav") as out:
-        model.infer(spk_audio_prompt=ref, text=text, output_path=out.name, verbose=False)
-        with wave.open(out.name) as w:
+    # A directory, not NamedTemporaryFile: on Windows the latter stays open
+    # exclusively and the model cannot write to the path it was handed.
+    d = tempfile.mkdtemp(prefix="opendub-indextts-")
+    try:
+        out = str(Path(d) / "line.wav")
+        model.infer(spk_audio_prompt=ref, text=text, output_path=out, verbose=False)
+        with wave.open(out) as w:
             sr = w.getframerate()
             a = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype(np.float32) / 32768
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
     return a, sr
 
 

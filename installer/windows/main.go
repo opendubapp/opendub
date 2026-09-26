@@ -23,6 +23,7 @@ import (
 	"archive/zip"
 	"bufio"
 	"compress/gzip"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -569,6 +570,42 @@ func doInstall() error {
 // and no progress bars because the output is a pipe, not a terminal.
 var uvEnv = []string{"UV_HTTP_TIMEOUT=600", "UV_NO_PROGRESS=1"}
 
+// updateProgram re-fetches the program before starting it. It is 250 KB — the
+// voice and Python, the parts that take minutes, are untouched — so it costs a
+// second and means a published fix arrives on its own. A failure here is not
+// worth stopping for: the copy already on disk still runs.
+func updateProgram() {
+	setState(phaseWorking, "Checking for updates…", "", -1)
+	archive := filepath.Join(rootDir, "opendub-update.tar.gz")
+	if err := download(site+"/opendub.tar.gz", archive, "OpenDub", nil); err != nil {
+		logLine("update: could not download, carrying on with what is here: " + err.Error())
+		return
+	}
+	defer os.Remove(archive)
+	before := requirementsHash()
+	if err := untarStrip1(archive, appDir); err != nil {
+		logLine("update: could not unpack, carrying on: " + err.Error())
+		return
+	}
+	logLine("update: program refreshed")
+	// Only reinstall packages when the list itself changed; uv is quick, but a
+	// network round trip on every launch is not what anyone wants.
+	if after := requirementsHash(); after != before && after != "" {
+		setState(phaseWorking, "Updating the voice…", "", -1)
+		if code, err := run(uvExe, []string{"pip", "install", "--python", pythonExe, "-r", "requirements-voice.txt"}, uvEnv, note); err != nil || code != 0 {
+			logLine("update: package update did not finish; the previous set is still installed")
+		}
+	}
+}
+
+func requirementsHash() string {
+	b, err := os.ReadFile(filepath.Join(appDir, "requirements-voice.txt"))
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(b))
+}
+
 // ---------------------------------------------------------------- the server
 
 var (
@@ -881,10 +918,15 @@ func main() {
 
 	createWindow()
 
-	// Same first move as the Mac app: if it is already here, just start it.
+	// Same first move as the Mac app: if it is already here, freshen it and
+	// start it. Without the freshening, a fix we publish never reaches anyone
+	// who already installed — which is how a fixed bug stays reported.
 	if installed() {
 		setState(phaseChecking, "Starting…", "", -1)
-		go startServer()
+		go func() {
+			updateProgram()
+			startServer()
+		}()
 	} else {
 		setState(phaseNeedsInstall, "OpenDub is not on this PC yet.",
 			"About 2 GB, a few minutes. It all goes in your own user folder.", 0)

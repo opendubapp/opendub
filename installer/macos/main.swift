@@ -95,7 +95,9 @@ final class Installer: ObservableObject {
     func start() {
         phase = .checking
         if installed {
-            Task { await startServer() }
+            // Freshen the program before starting it. Without this, a fix we
+            // publish never reaches anyone who already installed.
+            Task { await update(); await startServer() }
         } else {
             phase = .needsInstall
             status = "OpenDub is not on this Mac yet."
@@ -183,6 +185,34 @@ final class Installer: ObservableObject {
                            }
                        })
         guard code == 0 else { throw Failure("The voice could not be installed. Open Details to see why.") }
+    }
+
+    /// Re-fetch the program: 250 KB, seconds, and a published fix arrives on
+    /// its own. The voice and Python — the parts that take minutes — are left
+    /// alone. A failure is not worth stopping for; what is on disk still runs.
+    func update() async {
+        await set("Checking for updates…", "", fraction: nil)
+        let fm = FileManager.default
+        let tgz = Paths.root.appending(path: "opendub-update.tar.gz")
+        do {
+            try await download(URL(string: "\(Paths.site)/opendub.tar.gz")!, to: tgz) { _ in }
+            let before = try? Data(contentsOf: Paths.app.appending(path: "requirements-voice.txt"))
+            _ = try run(URL(fileURLWithPath: "/usr/bin/tar"),
+                        ["-xzf", tgz.path, "-C", Paths.app.path, "--strip-components", "1"],
+                        onLine: { [weak self] l in Task { @MainActor in self?.note(l) } })
+            try? fm.removeItem(at: tgz)
+            let after = try? Data(contentsOf: Paths.app.appending(path: "requirements-voice.txt"))
+            if let after, after != before {
+                // Only when the list itself changed: uv is quick, but a network
+                // round trip on every launch is not what anyone wants.
+                await set("Updating the voice…", "", fraction: nil)
+                _ = try run(Paths.uv, ["pip", "install", "--python", Paths.python.path, "-r", "requirements-voice.txt"],
+                            cwd: Paths.app, env: ["UV_HTTP_TIMEOUT": "600"],
+                            onLine: { [weak self] l in Task { @MainActor in self?.note(l) } })
+            }
+        } catch {
+            await MainActor.run { note("Update skipped: \(error.localizedDescription)") }
+        }
     }
 
     // ---------------------------------------------------------------- the server
