@@ -241,14 +241,20 @@ def local_speak(ref_audio: UploadFile = File(...), ref_text: str = Form(""), lin
         durations = [float(i["duration"]) if i.get("duration") else None for i in items]
     except Exception:
         raise HTTPException(400, "lines must be a JSON list of up to 16 {text, duration}")
-    with tempfile.NamedTemporaryFile(suffix=".wav") as ref:
-        ref.write(ref_audio.file.read())
-        ref.flush()
+    # A directory, not NamedTemporaryFile: on Windows that keeps the file open
+    # exclusively, so the engine cannot open it by name and every call failed
+    # with "Error opening '…tmp….wav': System error".
+    work = Path(tempfile.mkdtemp(prefix="opendub-ref-"))
+    try:
+        ref_path = work / "reference.wav"
+        ref_path.write_bytes(ref_audio.file.read())
         try:
-            clips, sr = engines.speak(engine, texts, Path(ref.name), ref_text.strip() or None, durations,
+            clips, sr = engines.speak(engine, texts, ref_path, ref_text.strip() or None, durations,
                                       language.strip() or None)
         except RuntimeError as e:
             raise HTTPException(500, str(e))
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
     out = []
     for c in clips:
         buf = io.BytesIO()
