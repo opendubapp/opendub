@@ -55,6 +55,8 @@ const CATALOGUE = {
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "浏览器阻止了本页访问你的电脑。请在地址栏的图标里允许，然后再按一次。",
     "Downloading the translation pack… {pct}%": "正在下载翻译语言包… {pct}%",
+    "Kept on this device.": "已保存在这台设备上。",
+    "Remove": "删除",
   },
   "zh-Hant": {
     "Look for the app on this computer": "在這台電腦上尋找應用程式",
@@ -97,6 +99,8 @@ const CATALOGUE = {
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "瀏覽器阻擋了本頁存取你的電腦。請在網址列的圖示中允許，然後再按一次。",
     "Downloading the translation pack… {pct}%": "正在下載翻譯語言包… {pct}%",
+    "Kept on this device.": "已儲存在這台裝置上。",
+    "Remove": "刪除",
   },
   ja: {
     "Look for the app on this computer": "このパソコンでアプリを探す",
@@ -139,6 +143,8 @@ const CATALOGUE = {
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "ブラウザがこのページからパソコンへの接続をブロックしています。アドレスバーのアイコンから許可して、もう一度押してください。",
     "Downloading the translation pack… {pct}%": "翻訳パックをダウンロード中… {pct}%",
+    "Kept on this device.": "この端末に保存されています。",
+    "Remove": "削除",
   },
   ko: {
     "Look for the app on this computer": "이 컴퓨터에서 앱 찾기",
@@ -181,6 +187,8 @@ const CATALOGUE = {
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "브라우저가 이 페이지의 컴퓨터 접근을 막고 있습니다. 주소창의 아이콘에서 허용한 뒤 다시 누르세요.",
     "Downloading the translation pack… {pct}%": "번역 팩 내려받는 중… {pct}%",
+    "Kept on this device.": "이 기기에 저장되어 있습니다.",
+    "Remove": "삭제",
   },
   de: {
     "Look for the app on this computer": "Nach der App auf diesem Computer suchen",
@@ -223,6 +231,8 @@ const CATALOGUE = {
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "Ihr Browser blockiert den Zugriff dieser Seite auf Ihren Computer. Erlauben Sie ihn über das Symbol in der Adressleiste und drücken Sie erneut.",
     "Downloading the translation pack… {pct}%": "Übersetzungspaket wird geladen… {pct} %",
+    "Kept on this device.": "Auf diesem Gerät gespeichert.",
+    "Remove": "Entfernen",
   },
   es: {
     "Look for the app on this computer": "Buscar la app en este ordenador",
@@ -265,6 +275,8 @@ const CATALOGUE = {
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "El navegador impide que esta página llegue a tu ordenador. Permítelo desde el icono de la barra de direcciones y vuelve a pulsar.",
     "Downloading the translation pack… {pct}%": "Descargando el paquete de traducción… {pct} %",
+    "Kept on this device.": "Guardado en este dispositivo.",
+    "Remove": "Eliminar",
   },
   pt: {
     "Look for the app on this computer": "Procurar o aplicativo neste computador",
@@ -307,6 +319,8 @@ const CATALOGUE = {
     "Your browser is blocking this page from reaching your computer. Allow it from the icon in the address bar, then press again.":
       "O navegador está impedindo esta página de acessar seu computador. Permita pelo ícone na barra de endereços e clique de novo.",
     "Downloading the translation pack… {pct}%": "Baixando o pacote de tradução… {pct}%",
+    "Kept on this device.": "Salvo neste dispositivo.",
+    "Remove": "Remover",
   },
 };
 
