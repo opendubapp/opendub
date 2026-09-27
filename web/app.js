@@ -248,6 +248,33 @@ function fileUrl(name, download = false) {
   return `/api/jobs/${job.id}/files/${name}?v=${job.result.version}${download ? "&download=1" : ""}`;
 }
 
+/** A dub made in this tab exists only in memory: a reload, a Back or a closed
+    tab throws it away, and the page comes back showing the demo. Ask before
+    that happens, and stop asking once it has been saved. */
+let unsavedDub = false;
+const warnBeforeLeaving = (e) => { e.preventDefault(); e.returnValue = ""; };
+function guardDub(on) {
+  if (on === unsavedDub) return;
+  unsavedDub = on;
+  if (on) window.addEventListener("beforeunload", warnBeforeLeaving);
+  else window.removeEventListener("beforeunload", warnBeforeLeaving);
+}
+
+/** What a saved file should be called, or null when the server names it. */
+function downloadName(R, name) {
+  const stem = (job.filename || "video").replace(/\.[^.]+$/, "");
+  const F = R.files;
+  const names = {
+    [F.video]: `${stem}.${R.target}.${R.extension || "mp4"}`,
+    [F.audio]: `${stem}.${R.target}.wav`,
+    [F.subtitles]: `${stem}.${R.target}.srt`,
+    [F.source_subtitles]: `${stem}.${R.source}.srt`,
+    [F.reference]: `${stem}.voice-sample.wav`,
+  };
+  if (/^(blob|data):/.test(name)) return names[name] || `${stem}.${R.target}.mp4`;
+  return STATIC ? (R.local ? names[name] : name) : null;
+}
+
 function renderResult() {
   const R = job.result;
   const lang = CFG.languages.find((l) => l.code === R.target);
@@ -255,7 +282,16 @@ function renderResult() {
   $("#res-title").textContent = job.filename;
   $("#dub-lang").textContent = R.target_endonym || (lang ? lang.endonym : R.target);
   $("#src-lang").textContent = R.source_endonym || R.source;
-  $("#dl-video").href = fileUrl(R.files.video, true);
+  // A dub made in this tab is a blob: URL, and a link to one without a
+  // download attribute navigates the tab to a bare video player instead of
+  // saving anything — and pressing Back then reloads the page and loses the
+  // dub, which is only in memory. The attribute is what makes it save.
+  const dl = $("#dl-video");
+  dl.href = fileUrl(R.files.video, true);
+  const saveAs = downloadName(R, R.files.video);
+  if (saveAs) dl.download = saveAs; else dl.removeAttribute("download");
+  guardDub(/^blob:/.test(R.files.video));
+  dl.onclick = () => guardDub(false);   // saved: nothing left to lose
 
   if (renderedVersion !== R.version) {
     renderedVersion = R.version;
@@ -460,11 +496,8 @@ function renderLines() {
 function renderDownloads() {
   const R = job.result, F = R.files;
   const lang = CFG.languages.find((l) => l.code === R.target);
-  const stem = (job.filename || "video").replace(/\.[^.]+$/, "");
-  const nice = { [F.video]: `${stem}.${R.target}.${R.extension || "mp4"}`, [F.audio]: `${stem}.${R.target}.wav`,
-    [F.subtitles]: `${stem}.${R.target}.srt`, [F.source_subtitles]: `${stem}.${R.source}.srt`, [F.reference]: `${stem}.voice-sample.wav` };
   const a = (name, label) => el("a", { class: "oa-btn oa-btn--secondary oa-btn--sm", href: fileUrl(name, true),
-    download: STATIC ? (R.local ? nice[name] : name) : null }, label);
+    download: downloadName(R, name) }, label);
   // filter(Boolean): replaceChildren turns a null into the text "null", so a
   // dub with no separate audio track printed a bare null between the buttons.
   $("#downloads").replaceChildren(...[
