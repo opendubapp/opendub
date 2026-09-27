@@ -92,6 +92,22 @@ async function boot() {
   if (STATIC) {
     $("#view-local").hidden = false;
     wireBrowserDub();
+    const kept = await loadDub();
+    if (kept) {
+      try {
+        job = kept;
+        renderedVersion = null;
+        renderResult();
+        showKeptNote();
+        show("result");
+        return;
+      } catch (e) {
+        // Kept by an older build, or half-written: show the demo rather than a
+        // broken page, and stop offering something we cannot render.
+        job = null;
+        await clearDub();
+      }
+    }
     await poll("demo");
     return;
   }
@@ -248,6 +264,105 @@ function fileUrl(name, download = false) {
   return `/api/jobs/${job.id}/files/${name}?v=${job.result.version}${download ? "&download=1" : ""}`;
 }
 
+// ---------------------------------------------------------------- keeping a dub
+
+// A dub made in this tab used to live only in memory: a reload, a Back or a
+// closed tab threw it away and the page came back showing the demo. It now
+// goes into the browser's own file system (OPFS) — private to this site, on
+// this device, never uploaded — and is restored on the next visit.
+const DUB_DIR = "last-dub";
+
+async function dubDir(create = false) {
+  if (!navigator.storage?.getDirectory) return null;
+  try {
+    const root = await navigator.storage.getDirectory();
+    return await root.getDirectoryHandle(DUB_DIR, { create });
+  } catch { return null; }
+}
+
+/** Save the finished dub and everything the result view needs to show it. */
+async function saveDub(j) {
+  const dir = await dubDir(true);
+  if (!dir) return false;
+  const R = j.result;
+  const saved = { ...R, files: { ...R.files } };
+  const put = async (key, url) => {
+    if (!url || !/^blob:/.test(url)) return url;
+    const blob = await (await fetch(url)).blob();
+    const name = `${key}${blob.type.includes("mp4") ? ".mp4" : blob.type.includes("wav") ? ".wav" : ".bin"}`;
+    const handle = await dir.getFileHandle(name, { create: true });
+    const w = await handle.createWritable();
+    await w.write(blob);
+    await w.close();
+    return name;                       // the job.json refers to files, not blobs
+  };
+  try {
+    for (const [k, v] of Object.entries(R.files)) saved.files[k] = await put(k, v);
+    const source = await put("source", j.source_file);
+    const meta = { filename: j.filename, created: j.created, options: j.options, source_file: source, result: saved };
+    const mh = await dir.getFileHandle("job.json", { create: true });
+    const mw = await mh.createWritable();
+    await mw.write(new Blob([JSON.stringify(meta)], { type: "application/json" }));
+    await mw.close();
+    return true;
+  } catch (e) {
+    // Out of room, or a browser that will not keep it: the dub is still on
+    // screen, so warn before leaving rather than pretending it is safe.
+    await clearDub();
+    return false;
+  }
+}
+
+/** The dub from last time, with fresh blob URLs, or null. */
+async function loadDub() {
+  const dir = await dubDir();
+  if (!dir) return null;
+  try {
+    const meta = JSON.parse(await (await (await dir.getFileHandle("job.json")).getFile()).text());
+    const url = async (name) => {
+      if (!name || /^(blob|data|https?):/.test(name)) return name;
+      const f = await (await dir.getFileHandle(name)).getFile();
+      return URL.createObjectURL(f);
+    };
+    const files = {};
+    for (const [k, v] of Object.entries(meta.result.files)) files[k] = await url(v);
+    return {
+      id: "browser", status: "done", stage: "", stage_progress: 1, stages: {}, log: [],
+      filename: meta.filename, created: meta.created, options: meta.options,
+      source_file: await url(meta.source_file),
+      result: { ...meta.result, files },
+    };
+  } catch { return null; }              // nothing kept, or half-written
+}
+
+/** Say where this came from, and offer to get rid of it. Someone who does not
+    know it was kept would wonder why their video is on a page they just
+    opened. */
+function showKeptNote() {
+  const eyebrow = $("#res-eyebrow");
+  const note = el("span", { class: "kept-note" },
+    " · ", t("Kept on this device."), " ",
+    el("button", { type: "button", class: "kept-remove", onclick: forgetDub }, t("Remove")));
+  eyebrow.append(note);
+}
+
+async function forgetDub() {
+  await clearDub();
+  location.reload();     // back to the demo, which is what the page shows without one
+}
+
+// The page is a module, so tests cannot reach these any other way. Keeping a
+// dub is worth a real test — it is the difference between losing someone's
+// video and not.
+window.opendub = { saveDub, loadDub, clearDub };
+
+async function clearDub() {
+  try {
+    const root = await navigator.storage?.getDirectory?.();
+    await root?.removeEntry(DUB_DIR, { recursive: true });
+  } catch { /* nothing to remove */ }
+}
+
 /** A dub made in this tab exists only in memory: a reload, a Back or a closed
     tab throws it away, and the page comes back showing the demo. Ask before
     that happens, and stop asking once it has been saved. */
@@ -342,7 +457,7 @@ function renderTimeline() {
     return n;
   };
   const seek = (t) => () => { $("#v-dub").currentTime = t; $("#v-src").currentTime = t; };
-  const vad = R.vad.length ? el("div", { class: "tl-row tl-vad", title: "Speech found by Silero VAD" },
+  const vad = (R.vad || []).length ? el("div", { class: "tl-row tl-vad", title: "Speech found by Silero VAD" },
     R.vad.map(([s, e]) => box(s, e, "", `speech ${fmt(s)}–${fmt(e)}`))) : null;
   const src = el("div", { class: "tl-row tl-src" },
     R.lines.map((l) => box(l.src_start, l.src_end, "", l.source, seek(l.src_start))));
@@ -856,6 +971,8 @@ function wireBrowserDub() {
       renderResult();
       show("result");
       document.getElementById("app").scrollIntoView({ behavior: "smooth" });
+      // Keep it, so a reload or a Back brings it back instead of the demo.
+      if (await saveDub(done)) guardDub(false);
     } else {
       renderRun();
       show("run");

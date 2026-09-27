@@ -395,3 +395,10 @@ section { scroll-margin-top: 5.5rem; }
    the same panel it already had, or pressing the button looks like nothing. */
 .install-outcome { display: flex; flex-direction: column; gap: 6px; }
 .install-outcome > b { color: var(--text-strong); }
+
+/* The note on a dub that came back from storage (APP-189). */
+.kept-note { color: var(--text-faint); text-transform: none; letter-spacing: 0; }
+.kept-remove {
+  font: inherit; text-transform: none; letter-spacing: 0; padding: 0; cursor: pointer;
+  background: none; border: 0; color: var(--text-link); text-decoration: underline;
+}
