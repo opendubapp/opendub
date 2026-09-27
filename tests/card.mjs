@@ -115,6 +115,16 @@ const cardBox = await page.locator("#dub-here").boundingBox();
 check("the card is on screen after pressing it",
   !!cardBox && cardBox.y < 900 && cardBox.y + cardBox.height > 0, `y=${cardBox && Math.round(cardBox.y)}`);
 
+// APP-188 — the result's "Download video" must save a file, not navigate the
+// tab to a blob and lose the dub behind a Back button.
+await page.goto(`${site.url}#demo`, { waitUntil: "networkidle" });
+await page.waitForSelector("#downloads a");
+const dlAttr = await page.locator("#dl-video").getAttribute("download");
+check("the Download video button asks the browser to save", dlAttr !== null, `download="${dlAttr}"`);
+check("it saves under the video's own name", /\.(mp4|wav)$/i.test(dlAttr || ""), dlAttr || "");
+const rows = await page.locator("#downloads a").evaluateAll((as) => as.map((a) => a.getAttribute("download")));
+check("every file button saves too", rows.every((d) => d !== null), rows.join(", ").slice(0, 80));
+
 check("no page errors", errors.length === 0, errors.join(" | ").slice(0, 200));
 
 await browser.close();
