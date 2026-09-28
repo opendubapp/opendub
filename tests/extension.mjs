@@ -145,6 +145,29 @@ const askContentScript = async (page) => {
   await view.close();
 }
 
+// --- the runtime is whole ----------------------------------------------------
+// A dub asked for ort-wasm-simd-threaded.asyncify.mjs at its third step and
+// stopped, because the build had left it out to save 26 MB (APP-191). The
+// runtime picks a file by name at that moment, so every one it might name has
+// to be there — and reachable from inside the extension, not merely on disk.
+{
+  const { readdir } = await import("node:fs/promises");
+  const site = (await readdir(join(EXT, "..", "..", "..", "web", "browser", "ort"))).sort();
+  const page = await browser.newPage();
+  await page.goto(`chrome-extension://${id}/popup.html`, { waitUntil: "load" });
+  const missing = await page.evaluate(async (files) => {
+    const out = [];
+    for (const f of files) {
+      const r = await fetch(chrome.runtime.getURL(`browser/ort/${f}`)).catch(() => null);
+      if (!r?.ok) out.push(f);
+    }
+    return out;
+  }, site);
+  check(`every runtime file the site ships is in the extension (${site.length})`,
+    missing.length === 0, missing.join(", ") || "none missing");
+  await page.close();
+}
+
 // --- the dubbing page, doing the real thing ----------------------------------
 {
   const page = await browser.newPage();
