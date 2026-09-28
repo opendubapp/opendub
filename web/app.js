@@ -751,7 +751,7 @@ function wireBrowserDub() {
     $("#btkey-field").hidden = id === "higgs";
     $("#btkey-note").textContent = id === "local"
       ? "The engines on your computer speak but do not translate. Without a Higgs key, Chrome's built-in translator is used where available — free, and on this device."
-      : "ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.";
+      : "ElevenLabs has no translation model. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once.";
     updateStart();
   }
 

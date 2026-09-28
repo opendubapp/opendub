@@ -34,10 +34,10 @@ const CATALOGUE = {
     "ElevenLabs API key": "ElevenLabs API 密钥",
     "Used for this dub only and sent only to Boson AI. Never stored.": "只用于这次配音，只发给 Boson AI。绝不保存。",
     "Used for this dub only and sent only to ElevenLabs. Never stored.": "只用于这次配音，只发给 ElevenLabs。绝不保存。",
-    "OmniVoice speaks but does not translate. Without a Higgs key, Chrome's built-in translator is used where available — free, and on this device.":
-      "OmniVoice 会说话，但不会翻译。不填 Higgs 密钥时，会在可用的地方改用 Chrome 内置的翻译器 —— 免费，而且就在这台设备上。",
-    "ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.":
-      "ElevenLabs 没有翻译模型。不填 Higgs 密钥时，会在可用的地方改用 Chrome 内置的翻译器。",
+    "The voice on your computer speaks but does not translate. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once. Free either way.":
+      "你电脑上的语音只负责说，不做翻译。不填 Higgs 密钥时，翻译在这个标签页里完成 —— 用 Chrome 自带的翻译器，或下载一次模型。两种都免费。",
+    "ElevenLabs has no translation model. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once.":
+      "ElevenLabs 没有翻译模型。不填 Higgs 密钥时，翻译在这个标签页里完成 —— 用 Chrome 自带的翻译器，或下载一次模型。",
     "Install it in one line": "一行命令装好",
     "Copy": "复制",
     "Copied": "已复制",
@@ -78,10 +78,10 @@ const CATALOGUE = {
     "ElevenLabs API key": "ElevenLabs API 金鑰",
     "Used for this dub only and sent only to Boson AI. Never stored.": "只用於這次配音，也只送給 Boson AI。絕不儲存。",
     "Used for this dub only and sent only to ElevenLabs. Never stored.": "只用於這次配音，也只送給 ElevenLabs。絕不儲存。",
-    "OmniVoice speaks but does not translate. Without a Higgs key, Chrome's built-in translator is used where available — free, and on this device.":
-      "OmniVoice 會說話，但不會翻譯。沒有 Higgs 金鑰時，會在可用的情況下改用 Chrome 內建的翻譯器 —— 免費，而且就在這台裝置上。",
-    "ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.":
-      "ElevenLabs 沒有翻譯模型。沒有 Higgs 金鑰時，會在可用的情況下改用 Chrome 內建的翻譯器。",
+    "The voice on your computer speaks but does not translate. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once. Free either way.":
+      "你電腦上的語音只負責說，不做翻譯。不填 Higgs 金鑰時，翻譯在這個分頁裡完成 —— 用 Chrome 自帶的翻譯器，或下載一次模型。兩種都免費。",
+    "ElevenLabs has no translation model. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once.":
+      "ElevenLabs 沒有翻譯模型。不填 Higgs 金鑰時，翻譯在這個分頁裡完成 —— 用 Chrome 自帶的翻譯器，或下載一次模型。",
     "Install it in one line": "一行指令裝好",
     "Copy": "複製",
     "Copied": "已複製",
@@ -122,10 +122,10 @@ const CATALOGUE = {
     "ElevenLabs API key": "ElevenLabs の API キー",
     "Used for this dub only and sent only to Boson AI. Never stored.": "この吹き替えにのみ使い、送信先は Boson AI だけです。保存はしません。",
     "Used for this dub only and sent only to ElevenLabs. Never stored.": "この吹き替えにのみ使い、送信先は ElevenLabs だけです。保存はしません。",
-    "OmniVoice speaks but does not translate. Without a Higgs key, Chrome's built-in translator is used where available — free, and on this device.":
-      "OmniVoice は話しますが、翻訳はしません。Higgs のキーがない場合は、使える環境なら Chrome 内蔵の翻訳機能を使います — 無料で、この端末で。",
-    "ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.":
-      "ElevenLabs には翻訳モデルがありません。Higgs のキーがない場合は、使える環境なら Chrome 内蔵の翻訳機能を使います。",
+    "The voice on your computer speaks but does not translate. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once. Free either way.":
+      "お使いのパソコンの音声は読み上げるだけで、翻訳はしません。Higgs のキーがない場合、翻訳はこのタブで行います — Chrome 内蔵の翻訳機能か、一度だけ取得するモデルで。どちらも無料です。",
+    "ElevenLabs has no translation model. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once.":
+      "ElevenLabs には翻訳モデルがありません。Higgs のキーがない場合、翻訳はこのタブで行います — Chrome 内蔵の翻訳機能か、一度だけ取得するモデルで。",
     "Install it in one line": "1 行で入れる",
     "Copy": "コピー",
     "Copied": "コピーしました",
@@ -166,10 +166,10 @@ const CATALOGUE = {
     "ElevenLabs API key": "ElevenLabs API 키",
     "Used for this dub only and sent only to Boson AI. Never stored.": "이번 더빙에만 쓰이고 Boson AI에만 전송됩니다. 저장하지 않습니다.",
     "Used for this dub only and sent only to ElevenLabs. Never stored.": "이번 더빙에만 쓰이고 ElevenLabs에만 전송됩니다. 저장하지 않습니다.",
-    "OmniVoice speaks but does not translate. Without a Higgs key, Chrome's built-in translator is used where available — free, and on this device.":
-      "OmniVoice는 말은 하지만 번역은 하지 않습니다. Higgs 키가 없으면 가능한 경우 Chrome 내장 번역기를 사용합니다 — 무료이고, 이 기기에서.",
-    "ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.":
-      "ElevenLabs에는 번역 모델이 없습니다. Higgs 키가 없으면 가능한 경우 Chrome 내장 번역기를 사용합니다.",
+    "The voice on your computer speaks but does not translate. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once. Free either way.":
+      "컴퓨터의 음성은 말하기만 하고 번역은 하지 않습니다. Higgs 키가 없으면 번역은 이 탭에서 이루어집니다 — Chrome 자체 번역기 또는 한 번 내려받는 모델로. 둘 다 무료입니다.",
+    "ElevenLabs has no translation model. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once.":
+      "ElevenLabs에는 번역 모델이 없습니다. Higgs 키가 없으면 번역은 이 탭에서 이루어집니다 — Chrome 자체 번역기 또는 한 번 내려받는 모델로.",
     "Install it in one line": "한 줄로 설치",
     "Copy": "복사",
     "Copied": "복사됨",
@@ -210,10 +210,10 @@ const CATALOGUE = {
     "ElevenLabs API key": "ElevenLabs API-Schlüssel",
     "Used for this dub only and sent only to Boson AI. Never stored.": "Nur für diese Synchronisation verwendet und nur an Boson AI gesendet. Wird nie gespeichert.",
     "Used for this dub only and sent only to ElevenLabs. Never stored.": "Nur für diese Synchronisation verwendet und nur an ElevenLabs gesendet. Wird nie gespeichert.",
-    "OmniVoice speaks but does not translate. Without a Higgs key, Chrome's built-in translator is used where available — free, and on this device.":
-      "OmniVoice spricht, übersetzt aber nicht. Ohne Higgs-Schlüssel wird der in Chrome eingebaute Übersetzer verwendet, sofern verfügbar — kostenlos und auf diesem Gerät.",
-    "ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.":
-      "ElevenLabs hat kein Übersetzungsmodell. Ohne Higgs-Schlüssel wird der in Chrome eingebaute Übersetzer verwendet, sofern verfügbar.",
+    "The voice on your computer speaks but does not translate. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once. Free either way.":
+      "Die Stimme auf Ihrem Computer spricht, übersetzt aber nicht. Ohne Higgs-Schlüssel wird in diesem Tab übersetzt — mit Chromes eigenem Übersetzer oder einem einmalig geladenen Modell. Beides kostenlos.",
+    "ElevenLabs has no translation model. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once.":
+      "ElevenLabs hat kein Übersetzungsmodell. Ohne Higgs-Schlüssel wird in diesem Tab übersetzt — mit Chromes eigenem Übersetzer oder einem einmalig geladenen Modell.",
     "Install it in one line": "In einer Zeile installieren",
     "Copy": "Kopieren",
     "Copied": "Kopiert",
@@ -254,10 +254,10 @@ const CATALOGUE = {
     "ElevenLabs API key": "Clave de API de ElevenLabs",
     "Used for this dub only and sent only to Boson AI. Never stored.": "Se usa solo para este doblaje y se envía solo a Boson AI. Nunca se guarda.",
     "Used for this dub only and sent only to ElevenLabs. Never stored.": "Se usa solo para este doblaje y se envía solo a ElevenLabs. Nunca se guarda.",
-    "OmniVoice speaks but does not translate. Without a Higgs key, Chrome's built-in translator is used where available — free, and on this device.":
-      "OmniVoice habla, pero no traduce. Sin una clave de Higgs se usa el traductor integrado de Chrome cuando está disponible — gratis y en este dispositivo.",
-    "ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.":
-      "ElevenLabs no tiene modelo de traducción. Sin una clave de Higgs se usa el traductor integrado de Chrome cuando está disponible.",
+    "The voice on your computer speaks but does not translate. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once. Free either way.":
+      "La voz en tu ordenador habla, pero no traduce. Sin clave de Higgs, la traducción ocurre en esta pestaña: el traductor de Chrome o un modelo que se descarga una vez. Gratis en ambos casos.",
+    "ElevenLabs has no translation model. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once.":
+      "ElevenLabs no tiene modelo de traducción. Sin clave de Higgs, la traducción ocurre en esta pestaña: el traductor de Chrome o un modelo que se descarga una vez.",
     "Install it in one line": "Instálalo con una línea",
     "Copy": "Copiar",
     "Copied": "Copiado",
@@ -298,10 +298,10 @@ const CATALOGUE = {
     "ElevenLabs API key": "Chave de API da ElevenLabs",
     "Used for this dub only and sent only to Boson AI. Never stored.": "Usada só nesta dublagem e enviada só para a Boson AI. Nunca é armazenada.",
     "Used for this dub only and sent only to ElevenLabs. Never stored.": "Usada só nesta dublagem e enviada só para a ElevenLabs. Nunca é armazenada.",
-    "OmniVoice speaks but does not translate. Without a Higgs key, Chrome's built-in translator is used where available — free, and on this device.":
-      "O OmniVoice fala, mas não traduz. Sem uma chave Higgs, usamos o tradutor embutido do Chrome onde ele existir — grátis e neste dispositivo.",
-    "ElevenLabs has no translation model. Without a Higgs key, Chrome's built-in translator is used where available.":
-      "A ElevenLabs não tem modelo de tradução. Sem uma chave Higgs, usamos o tradutor embutido do Chrome onde ele existir.",
+    "The voice on your computer speaks but does not translate. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once. Free either way.":
+      "A voz no seu computador fala, mas não traduz. Sem uma chave da Higgs, a tradução acontece nesta aba — o tradutor do próprio Chrome ou um modelo baixado uma vez. Grátis nos dois casos.",
+    "ElevenLabs has no translation model. Without a Higgs key, translation runs in this tab — Chrome's own translator, or a model downloaded once.":
+      "O ElevenLabs não tem modelo de tradução. Sem uma chave da Higgs, a tradução acontece nesta aba — o tradutor do próprio Chrome ou um modelo baixado uma vez.",
     "Install it in one line": "Instale com uma linha",
     "Copy": "Copiar",
     "Copied": "Copiado",

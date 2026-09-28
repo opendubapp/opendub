@@ -3,6 +3,7 @@
 import * as core from "./core.js";
 import * as A from "./audio.js";
 import { higgs, elevenlabs, local } from "./providers.js";
+import { localTranslator } from "./translate-pairs.js";
 
 export const STAGES = [
   ["probe", "Read the video"], ["separate", "Separate voice from music"], ["recognise", "Find speech and transcribe"],
@@ -119,8 +120,18 @@ export async function dub(file, opts, emit) {
       const tr = await builtInTranslator(opts.translator, lang || "en", target, log);
       texts = []; for (const s of segs) texts.push(await tr.translate(s.text));
       log("Translated by this browser's built-in translator (no length budget)");
+    } else if (localTranslator(lang || "en", target.iso)) {
+      // Firefox has no translator of its own, so bring one: opus-mt in this
+      // tab, downloaded once and cached by the browser.
+      const { translateLocally } = await import("./translate-local.js");
+      log(`Translating here with opus-mt (${lang || "en"} → ${target.iso}); the model downloads once`);
+      texts = await translateLocally(segs.map((s) => s.text), lang || "en", target.iso,
+                                     (f) => progress(f, "Translating on this device"));
+      log("Translated on this device (no length budget)");
     } else {
-      throw new Error(`${provider.name} has no translation model. Add a Higgs key for translation, or use Chrome, whose built-in translator runs on this device.`);
+      // A pair with no model here, in a browser with no translator of its own.
+      const from = core.language(lang || "en")?.name || lang || "the spoken language";
+      throw new Error(`Nothing on this device can translate ${from} → ${target.name}. Add a Higgs key, or use Chrome, whose built-in translator covers more pairs.`);
     }
     let tones = segs.map(() => null);
     if (opts.tone !== false && chatter && provider.id === "higgs") {

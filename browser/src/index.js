@@ -10,3 +10,8 @@ export async function capabilities() {
   const encode = typeof VideoEncoder === "function";
   return { webgpu, encode, translator: "Translator" in self };
 }
+
+// Translation in the tab, for browsers with none of their own. The table is
+// cheap to ask; the model arrives only when it is used.
+export { localTranslator } from "./translate-pairs.js";
+export const translateLocally = async (...a) => (await import("./translate-local.js")).translateLocally(...a);
