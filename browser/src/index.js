@@ -15,3 +15,17 @@ export async function capabilities() {
 // cheap to ask; the model arrives only when it is used.
 export { localTranslator } from "./translate-pairs.js";
 export const translateLocally = async (...a) => (await import("./translate-local.js")).translateLocally(...a);
+
+/**
+ * Run the ONNX runtime without worker threads.
+ *
+ * Its threaded build starts workers from blob: URLs, and a Chrome extension
+ * page may not: MV3 rejects "blob:" in the manifest's CSP outright, so the
+ * extension will not even install with it. Slower on the processor, and the
+ * only way the same pipeline runs in both places.
+ */
+export async function singleThreaded() {
+  const { env } = await import("@huggingface/transformers");
+  env.backends.onnx.wasm.numThreads = 1;
+  env.backends.onnx.wasm.proxy = false;
+}
