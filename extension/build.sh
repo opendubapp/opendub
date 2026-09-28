@@ -23,9 +23,12 @@ for target in chrome firefox; do
   cp src/*.js src/*.html src/*.css "$out/"
   cp -R icons "$out/"
   cp -R "$BUNDLE" "$out/browser"
-  # The asyncify build of the ONNX runtime is for WebNN, which nothing here
-  # uses, and it is 26 MB. The CPU and WebGPU builds stay.
-  rm -f "$out/browser/ort/"*asyncify*
+  # Every runtime file the site ships, with none left out. Dropping the
+  # asyncify build to save 26 MB broke WebGPU at the third step of a dub —
+  # the runtime asks for it by name and the whole thing stops (APP-191).
+  site_files=$(ls "$BUNDLE/ort" | sort)
+  ext_files=$(ls "$out/browser/ort" | sort)
+  [ "$site_files" = "$ext_files" ] || { echo "$target: the runtime is not the one the site ships"; exit 1; }
   cp "src/manifest.$target.json" "$out/manifest.json"
   rm -f "$out/manifest.chrome.json" "$out/manifest.firefox.json"
   python3 -c "import json,sys; json.load(open('$out/manifest.json'))" || { echo "$target: manifest is not valid JSON"; exit 1; }
