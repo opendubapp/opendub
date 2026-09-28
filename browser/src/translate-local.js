@@ -9,7 +9,14 @@
 // first time. Where a direction has no model of its own, en-mul (one model,
 // many targets, chosen with a token) stands in — poorer, but present.
 
-import { pipeline } from "@huggingface/transformers";
+import { pipeline, env } from "@huggingface/transformers";
+
+// The same runtime settings the speech model uses: our own copy of the ONNX
+// wasm, not a CDN. Without this the library reaches for jsdelivr, which the
+// site's content-security-policy refuses — and the failure reads as "no
+// available backend found" rather than as a blocked request.
+env.backends.onnx.wasm.wasmPaths = new URL("/browser/ort/", location.href).href;
+env.allowLocalModels = false;
 
 import { localTranslator } from "./translate-pairs.js";
 

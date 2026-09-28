@@ -3,7 +3,11 @@
 // asked for at that moment — and then runs the same pipeline the website
 // runs, bundled here so nothing has to leave this machine.
 
-import { dub, STAGES, LANGUAGES, capabilities, localAppStatus } from "./browser/opendub-browser.js";
+import { dub, STAGES, LANGUAGES, capabilities, localAppStatus, singleThreaded } from "./browser/opendub-browser.js";
+
+// Before anything loads a model: an extension page may not start a worker
+// from a blob: URL, which is what the runtime's threaded build does.
+await singleThreaded();
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
