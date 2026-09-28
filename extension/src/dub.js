@@ -93,7 +93,12 @@ $("#start").addEventListener("click", async () => {
     key: $("#key").value.trim(),
     translateKey: provider === "higgs" ? $("#key").value.trim() : null,
     tone: true,
-    burn: true,
+    // Subtitles cannot be burned in here: libass is Emscripten, and an
+    // extension's content-security-policy refuses the `new Function` its glue
+    // is built on. The picture is copied instead — quicker, and the subtitles
+    // come as a file beside the video.
+    burn: false,
+    copyPicture: true,
   }, paint);
 
   if (done.status !== "done") {

@@ -16,7 +16,7 @@ const TOLERANCE = 1.15, MAX_SECONDS = 300;
 /**
  * opts: { target, source ("auto"|code), provider ("higgs"|"elevenlabs"), key,
  *         translateKey (a Higgs key, for providers without a chat model),
- *         removeVoice, tone, burn }
+ *         removeVoice, tone, burn, copyPicture }
  * emit(state): the job object the page renders, after every change.
  */
 /**
@@ -28,6 +28,18 @@ const TOLERANCE = 1.15, MAX_SECONDS = 300;
  * if the pack is already on the machine; if it is not, say what to do rather
  * than reporting the browser's own sentence about gestures.
  */
+/** Is the browser's own translator actually going to work here? Asking costs
+    one create() — cached by the browser — and saves a silent wait. */
+async function usableBuiltIn(prepared, source, target, log) {
+  try {
+    await builtInTranslator(prepared, source, target, log);
+    return true;
+  } catch (e) {
+    if (localTranslator(source, target.iso)) return false;   // ours will do it
+    throw e;                                                 // nothing else can
+  }
+}
+
 async function builtInTranslator(prepared, source, target, log) {
   if (prepared) {
     try {
@@ -36,8 +48,18 @@ async function builtInTranslator(prepared, source, target, log) {
     } catch { /* fall through and try for the language we actually heard */ }
   }
   try {
-    return await self.Translator.create({ sourceLanguage: source, targetLanguage: target.iso });
+    // A create() that never settles is worse than one that fails: inside a
+    // browser extension it simply hung, and the dub sat at step four for a
+    // quarter of an hour saying nothing. Give it a minute, then move on.
+    return await Promise.race([
+      self.Translator.create({ sourceLanguage: source, targetLanguage: target.iso }),
+      new Promise((_, no) => setTimeout(() => no(new Error("the browser's translator did not answer")), 60000)),
+    ]);
   } catch (e) {
+    if (/did not answer/.test(String(e && e.message))) {
+      log("This browser's translator did not answer; translating here instead");
+      throw e;                       // the caller falls back to a model of ours
+    }
     if (/gesture/i.test(String(e && e.message))) {
       const name = core.language(source)?.name || source;
       log(`Chrome has no ${name} → ${target.name} pack yet`);
@@ -116,7 +138,7 @@ export async function dub(file, opts, emit) {
     let texts;
     if (chatter) {
       texts = await translateWithChat(chatter, segs, target, sourceName, log);
-    } else if ("Translator" in self) {
+    } else if ("Translator" in self && await usableBuiltIn(opts.translator, lang || "en", target, log)) {
       const tr = await builtInTranslator(opts.translator, lang || "en", target, log);
       texts = []; for (const s of segs) texts.push(await tr.translate(s.text));
       log("Translated by this browser's built-in translator (no length budget)");
@@ -194,6 +216,7 @@ export async function dub(file, opts, emit) {
       if (!support.ok) throw new Error(support.reason || "This browser cannot encode video. Chrome, Edge or Safari 16.4+ can.");
       const burned = await burnInBrowser({
         file, width: info.width, height: info.height, start: 0, end: null, audio: mixed.buffer,
+        copyPicture: !!opts.copyPicture,
         ass: opts.burn === false ? core.ass([], info.width, info.height, lay, "sans-serif") : core.ass(tgtCues, info.width, info.height, lay, "sans-serif"),
         onProgress: (f, note) => progress(f, note),
       });

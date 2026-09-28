@@ -40,6 +40,7 @@ import {
   CanvasSource,
   EncodedAudioPacketSource,
   EncodedPacketSink,
+  EncodedVideoPacketSource,
   Input,
   Mp4OutputFormat,
   Output,
@@ -68,6 +69,11 @@ export interface BurnOptions {
   /** OpenDub: a replacement soundtrack (the dub mix). Encoded with WebCodecs
    *  instead of copying the source's audio packets. */
   audio?: AudioBuffer;
+  /** Copy the picture rather than redrawing it, which skips libass entirely.
+   *  Subtitles are then not burned in — they travel as a file. A browser
+   *  extension needs this: its content-security-policy refuses the `new
+   *  Function` that libass's Emscripten glue is built on. */
+  copyPicture?: boolean;
 }
 
 export interface BurnResult {
@@ -146,8 +152,79 @@ function assertNotAborted(signal?: AbortSignal) {
   if (signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
 }
 
+/** Copy the picture, replace the sound: no decoding, no libass, no encoder. */
+async function muxWithNewAudio(options: BurnOptions): Promise<BurnResult> {
+  const { file, start, end, onProgress, signal } = options;
+  onProgress?.(0, "Reading the video");
+
+  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+  const videoTrack = await input.getPrimaryVideoTrack();
+  if (!videoTrack) throw new Error("That file has no video track.");
+
+  const sourceDuration = await input.computeDuration();
+  const clipStart = Math.max(0, start);
+  const clipEnd = end != null && end > clipStart ? Math.min(end, sourceDuration) : sourceDuration;
+
+  const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });
+  const codec = videoTrack.codec as VideoCodec | null;
+  if (!codec || !output.format.getSupportedVideoCodecs().includes(codec)) {
+    throw new Error("This video's picture cannot be copied into an MP4 here.");
+  }
+  const picture = new EncodedVideoPacketSource(codec);
+  output.addVideoTrack(picture);
+
+  const codecs = output.format.getSupportedAudioCodecs();
+  const pick = (await canEncodeAudio("aac")) && codecs.includes("aac") ? "aac"
+    : (await canEncodeAudio("opus")) && codecs.includes("opus") ? "opus" : null;
+  if (!pick) throw new Error("This browser cannot encode audio (no AAC or Opus encoder).");
+  const sound = new AudioBufferSource({ codec: pick, bitrate: 160e3 });
+  output.addAudioTrack(sound);
+
+  await output.start();
+  assertNotAborted(signal);
+
+  onProgress?.(0, "Encoding the dubbed audio");
+  if (options.audio) {
+    await sound.add(options.audio);
+  }
+  sound.close();
+
+  onProgress?.(0.2, "Copying the picture");
+  const decoderConfig = await videoTrack.getDecoderConfig();
+  const sink = new EncodedPacketSink(videoTrack);
+  const span = Math.max(0.001, clipEnd - clipStart);
+  let first = true;
+  for await (const packet of sink.packets()) {
+    assertNotAborted(signal);
+    if (packet.timestamp + packet.duration <= clipStart) continue;
+    if (packet.timestamp >= clipEnd) break;
+    const shifted = packet.clone({ timestamp: packet.timestamp - clipStart });
+    picture.add(shifted, first && decoderConfig ? { decoderConfig } : undefined);
+    first = false;
+    onProgress?.(0.2 + 0.75 * Math.min(1, (packet.timestamp - clipStart) / span), "Copying the picture");
+  }
+  picture.close();
+
+  await output.finalize();
+  onProgress?.(1, "Done");
+  const buffer = (output.target as BufferTarget).buffer;
+  if (!buffer) throw new Error("The video came out empty.");
+  return { blob: new Blob([buffer], { type: "video/mp4" }), extension: "mp4" };
+}
+
 export async function burnInBrowser(options: BurnOptions): Promise<BurnResult> {
   const { file, ass, width, height, start, end, onProgress, signal } = options;
+
+  // A browser extension cannot run libass: JASSUB is Emscripten, and
+  // Emscripten's glue builds functions with `new Function`, which a Chrome
+  // extension's content-security-policy refuses outright. There is no flag
+  // for it — MV3 will not accept 'unsafe-eval' in a manifest at all.
+  //
+  // So when subtitles are not being burned in, the picture is copied rather
+  // than redrawn: the video packets go to the muxer untouched beside the new
+  // soundtrack. No libass, no canvas, no re-encoding — and it is far quicker
+  // than compositing every frame. The subtitles travel as a file instead.
+  if (options.copyPicture) return await muxWithNewAudio(options);
 
   const support = await burnSupport(width, height);
   if (!support.ok) throw new Error(support.reason ?? "Encoding is not supported here.");

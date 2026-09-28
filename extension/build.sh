@@ -29,6 +29,28 @@ for target in chrome firefox; do
   site_files=$(ls "$BUNDLE/ort" | sort)
   ext_files=$(ls "$out/browser/ort" | sort)
   [ "$site_files" = "$ext_files" ] || { echo "$target: the runtime is not the one the site ships"; exit 1; }
+  # JASSUB decides whether WebAssembly works by compiling a module
+  # synchronously, which a Chrome extension's CSP refuses — and its fallback
+  # for "no WASM" is eval(), which it also refuses. The asynchronous path it
+  # takes next works here, so the fallback is removed rather than the test:
+  # without this a dub runs for three minutes and dies at the last step
+  # (APP-191). The site is untouched; its CSP allows the test.
+  patched=0
+  for worker in "$out/browser/assets/"jassub-worker-*.js; do
+    [ -f "$worker" ] || continue
+    python3 - "$worker" <<'PATCH'
+import sys, pathlib
+p = pathlib.Path(sys.argv[1]); s = p.read_text()
+old = 'catch(e){console.warn(e),eval(read_(data.legacyWasmUrl))}'
+new = 'catch(e){console.warn(e)}'
+if old not in s:
+    sys.exit(1 if new not in s else 0)      # already patched is fine; changed shape is not
+p.write_text(s.replace(old, new))
+PATCH
+    patched=1
+  done
+  [ "$patched" = 1 ] || { echo "$target: JASSUB's worker was not where it was expected"; exit 1; }
+
   cp "src/manifest.$target.json" "$out/manifest.json"
   rm -f "$out/manifest.chrome.json" "$out/manifest.firefox.json"
   python3 -c "import json,sys; json.load(open('$out/manifest.json'))" || { echo "$target: manifest is not valid JSON"; exit 1; }
