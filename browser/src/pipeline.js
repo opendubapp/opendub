@@ -179,22 +179,41 @@ export async function dub(file, opts, emit) {
     let done = 0;
     // The app on this computer generates one line at a time; the cloud providers take three.
     await pool(lines, provider.id === "local" ? 1 : 3, async (line, i) => {
-      await speakFitted(line, provider, chatter, target, lines, i);
+      await speakFitted(line, provider, chatter, target, lines, i, info.duration);
       progress(++done / lines.length);
-      log(`line ${i + 1}/${lines.length}: ${(line.audio.length / A.SR).toFixed(1)} s against the speaker's ${(line.seg.end - line.seg.start).toFixed(1)} s`);
+      log(`line ${i + 1}/${lines.length}: ${(line.audio.length / A.SR).toFixed(1)} s (asked ${(line.asked ?? 0).toFixed(1)} s for ${core.wordsIn(line.text)} words) against the speaker's ${(line.seg.end - line.seg.start).toFixed(1)} s`);
     });
     end("voice");
 
-    // 6 — place exactly on the speaker's span, and mix
+    // 6 — place on the speaker's start, and mix
+    //
+    // Snapping both ends to the speaker's span is right when the two
+    // languages take about the same time, and wrong when they do not: a
+    // Chinese line dubbed into English was stretched from three seconds to
+    // eight, which drawls, and the reverse crushes. So the span is honoured
+    // when it costs at most a quarter of the pace, and otherwise the line
+    // keeps its own length and simply starts where the speaker starts.
     begin("mix");
-    for (const l of lines) {
-      const want = Math.max(0.3, l.seg.end - l.seg.start);
-      l.tempo = l.audio.length / A.SR / want;
-      l.audio = A.fitLength(A.stretch(l.audio, l.tempo), Math.round(want * A.SR));
-      l.start = l.seg.start; l.end = l.seg.start + want;
+    const MOST = 1.25;
+    for (const [i, l] of lines.entries()) {
+      const span = Math.max(0.3, l.seg.end - l.seg.start);
+      const nextStart = lines[i + 1] ? lines[i + 1].seg.start : info.duration;
+      const room = Math.max(span, nextStart - l.seg.start - 0.08);
+      const natural = l.audio.length / A.SR;
+      let tempo = 1;
+      if (natural / span >= 1 / MOST && natural / span <= MOST) tempo = natural / span;   // fits: snap to it
+      else if (natural > room) tempo = Math.min(natural / room, MOST);                    // too long: hurry, a little
+      l.tempo = tempo;
+      l.audio = tempo === 1 ? l.audio : A.stretch(l.audio, tempo);
+      if (Math.abs(natural / span - 1) <= (MOST - 1)) l.audio = A.fitLength(l.audio, Math.round(span * A.SR));
+      l.start = l.seg.start; l.end = l.seg.start + l.audio.length / A.SR;
+      if (l.end > nextStart) log(`Line ${i + 1} runs ${(l.end - nextStart).toFixed(1)} s into the next one`);
     }
-    const mixed = A.mix({ lines, background, original: [L, R], voiceRef: voiceMono, duration: info.duration });
-    log(`Placed ${lines.length} lines on the speaker's own start and end`);
+    // The original's own speech regions go in too: where the speaker talks and
+    // the dub happens to be silent, the original would otherwise come back up.
+    const mixed = A.mix({ lines, background, original: [L, R], voiceRef: voiceMono, duration: info.duration,
+                          speech: segs.map((s) => ({ start: s.start, end: s.end })) });
+    log(`Placed ${lines.length} lines on the speaker's own start`);
     end("mix");
 
     // 7 — subtitles and the video
@@ -273,13 +292,19 @@ async function translateWithChat(chat, segs, target, sourceName, log) {
   return out;
 }
 
-async function speakFitted(line, provider, chat, target, lines, i) {
-  const want = Math.max(0.3, line.seg.end - line.seg.start);
+async function speakFitted(line, provider, chat, target, lines, i, videoEnd = Infinity) {
+  // How long the line should be, rather than how long the original was.
+  const { want, room, natural } = core.fitSeconds({
+    text: line.text, start: line.seg.start, end: line.seg.end,
+    nextStart: lines[i + 1] ? lines[i + 1].seg.start : videoEnd, videoEnd,
+  }, target);
+  line.asked = want;
+  if (natural > room * 1.15) line.crowded = +(natural / room).toFixed(2);
   const speak = async () => A.trimSilence(await A.decodeBlob(await provider.speak(line.text, provider.voice, {
     tags: core.higgsTags(line.tone), speed: line.speed ?? 1, lang: target.iso, duration: want,
   })));
   line.audio = await speak();
-  if (provider.exactDuration) return;  // generated at the speaker's length already
+  if (provider.exactDuration) return;  // generated at the length asked for
   const off = () => line.audio.length / A.SR / want;
   // Local engines have no speed control: without a translator to re-word the
   // line, the final stretch in the mix is all there is.

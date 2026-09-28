@@ -134,12 +134,60 @@ export function measure(segs, voice) {
   return segs.map((_, i) => ({ loudness_db: +(loud[i] - ml).toFixed(1), pace: +(pace[i] / mp).toFixed(2) }));
 }
 
+/** Where anyone is talking in the original, by loudness alone.
+ *
+ * The transcript is not enough to duck against: an intro the recogniser never
+ * segmented stayed up at full level and the original speaker was plainly
+ * audible under the dub. This finds speech the way a level meter would —
+ * frames well above the track's own quiet — so nothing that sounds like a
+ * voice is left unducked. Music is ducked with it, which is what a dub wants.
+ */
+function loudRegions(mono, n) {
+  const frame = Math.floor(SR * 0.05);
+  const level = [];
+  for (let i = 0; i + frame <= mono.length; i += frame) {
+    let sum = 0;
+    for (let j = i; j < i + frame; j++) sum += mono[j] * mono[j];
+    level.push(Math.sqrt(sum / frame));
+  }
+  if (!level.length) return [];
+  const sorted = [...level].sort((a, b) => a - b);
+  const quiet = sorted[Math.floor(sorted.length * 0.2)] || 1e-5;
+  const gate = Math.max(quiet * 4, (sorted[Math.floor(sorted.length * 0.95)] || 1e-4) * 0.12);
+  const out = [];
+  for (let i = 0; i < level.length; i++) {
+    if (level[i] < gate) continue;
+    const start = i * frame / SR;
+    while (i + 1 < level.length && level[i + 1] >= gate) i++;
+    out.push({ start, end: Math.min(n / SR, (i + 1) * frame / SR) });
+  }
+  return out;
+}
+
+/** A gain curve for the original: `under` where speech competes, `idle`
+    elsewhere, with a short ramp between so it fades rather than jumps. */
+function duckEnvelope(n, lines, speech, under, idle) {
+  const g = new Float32Array(n).fill(idle);
+  const hold = (from, to) => {
+    const a = Math.max(0, Math.floor(from * SR)), b = Math.min(n, Math.ceil(to * SR));
+    for (let i = a; i < b; i++) g[i] = under;
+  };
+  for (const l of lines) hold(l.start, l.start + l.audio.length / SR);
+  for (const s of speech) hold(s.start, s.end);
+  // Smooth it: a 150 ms moving minimum-to-target slope, done as a two-pass
+  // exponential so an abrupt edge becomes a fade.
+  const k = Math.exp(-1 / (0.15 * SR));
+  for (let i = 1; i < n; i++) if (g[i] > g[i - 1]) g[i] = g[i] + (g[i - 1] - g[i]) * k;
+  for (let i = n - 2; i >= 0; i--) if (g[i] > g[i + 1]) g[i] = g[i] + (g[i + 1] - g[i]) * k;
+  return g;
+}
+
 /**
  * The final soundtrack: background (or the ducked original) plus the placed
  * dub, matched to the original speech's loudness, peak-limited. Returns an
  * AudioBuffer for the encoder and the stereo arrays for a WAV download.
  */
-export function mix({ lines, background, original, voiceRef, duration, duck = 0.12 }) {
+export function mix({ lines, background, original, voiceRef, duration, speech = [], duck = 0.05, duckIdle = 0.25 }) {
   const n = Math.floor(duration * SR);
   const voice = new Float32Array(n);
   for (const l of lines) {
@@ -148,7 +196,20 @@ export function mix({ lines, background, original, voiceRef, duration, duck = 0.
   }
   const target = speechRms(voiceRef), have = speechRms(voice);
   const gain = have > 0 && target > 0 ? Math.min(4, Math.max(0.25, target / have)) : 1;
-  const [bl, br] = background ?? [original[0].map((v) => v * duck), original[1].map((v) => v * duck)];
+  // Where the original has to be held down, and how far.
+  //
+  // A flat -18 dB over the whole track left the original voice audible under
+  // the dub — the first report of a zh→en dub was "the Chinese is still
+  // there". Without separation we cannot remove that voice, but we can duck
+  // hard exactly where it competes (under the dub, and under the original's
+  // own speech) and lift again for music and room tone in between, with a
+  // 150 ms slope so nothing pumps.
+  const ducked = background ? null
+    : duckEnvelope(n, lines, [...speech, ...loudRegions(mono(original[0], original[1]), n)], duck, duckIdle);
+  const [bl, br] = background ?? [
+    original[0].map((v, i) => v * ducked[i]),
+    original[1].map((v, i) => v * ducked[i]),
+  ];
   const L = new Float32Array(n), R = new Float32Array(n);
   let peak = 0;
   for (let i = 0; i < n; i++) {

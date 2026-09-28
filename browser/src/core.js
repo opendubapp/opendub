@@ -18,6 +18,56 @@ export const LANGUAGES = [
 export const language = (code) => LANGUAGES.find((l) => l.code === code || l.iso === code)
   || { code, name: code, endonym: code, iso: code, cps: 14, cjk: false };
 
+/**
+ * How long a line wants to be, spoken at a comfortable pace.
+ *
+ * Characters alone mislead: "from a website of the words peoples money" is
+ * short in characters and long in words, and asking a voice to say it in the
+ * characters' worth of time produced four words a second — a third faster
+ * than anyone speaks. Both are measured and the slower one wins.
+ *
+ * 2.6 words a second is unhurried narration; the per-language character rate
+ * carries the writing systems where words are not the unit — Chinese and
+ * Japanese have no spaces, and the word count would be one.
+ */
+export const wordsIn = (text) => (String(text).trim().match(/\S+/g) || []).length;
+
+export function naturalSeconds(text, lang) {
+  const chars = countChars(text);
+  const byChars = chars / (lang.cps || 14);
+  if (lang.cjk) return byChars;
+  const words = wordsIn(text);
+  return Math.max(byChars, words / 2.6);
+}
+
+/**
+ * How long to ask the voice for, given where the next line starts.
+ *
+ * Chinese says in four seconds what English needs six to say, so asking for
+ * the speaker's own span crushed the dub into it — a zh→en dub came back at
+ * four and a half words a second. A line may use the pause that follows it,
+ * up to where the next one begins, and is only compressed when there is
+ * genuinely nowhere to put it; never by more than a quarter, because a line
+ * that overruns a little is a smaller fault than one gabbled to fit.
+ *
+ * The two ceilings are not preferences. A line may not outlive the video and
+ * may not swallow the one after it: a runaway transcription of jerry's last
+ * line asked for 54.6 s of speech to sit in the 10.9 s the video had left,
+ * and the engine gives you exactly the length you ask it for.
+ */
+export function fitSeconds({ text, start, end, nextStart, videoEnd = Infinity }, lang) {
+  const span = Math.max(0.3, end - start);
+  const natural = naturalSeconds(text, lang);
+  const next = nextStart ?? videoEnd;
+  const room = Math.max(span, next - start - 0.08);      // a breath before the next line
+  // A sixth more than the words need: the engine lays its own pauses inside
+  // the length it is given, and the silence at the ends is trimmed off after,
+  // so asking for exactly the speaking time came back a sixth fast.
+  const want = Math.min(Math.max(natural * 1.15, 0.3), Math.max(room, natural / 1.25),
+                        Math.max(0.3, Math.min(videoEnd, next + 1.5) - start));
+  return { want, room, natural };
+}
+
 // ------------------------------------------------------------------ tokens and alignment
 
 const CJK = "\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff";
@@ -120,13 +170,34 @@ function cap(ws, maxDur) {
 const SIGN_OFFS = new Set(["thanksforwatching", "thankyouforwatching", "pleasesubscribe", "likeandsubscribe",
   "subtitlesbytheamaraorgcommunity", "thankyou", "字幕由amaraorg社群提供", "谢谢观看", "謝謝觀看", "ご視聴ありがとうございました", "시청해주셔서감사합니다"]);
 const LABELS = new Set(["music", "applause", "laughter", "laughs", "silence", "noise", "inaudible", "音乐", "掌声", "笑声"]);
-const squash = (s) => s.normalize("NFKC").toLowerCase().replace(/[\W_]+/gu, "");
+// \W is ASCII-only whatever the u flag says, so this used to squash every
+// Chinese line to "" — and clean() reads an empty squash as a non-speech
+// label. A 41 s Mandarin video came out of Whisper as 11 segments and left
+// clean() as 1: the only one with Latin letters in it. Letters and numbers
+// in any script, as norm() above already does.
+const squash = (s) => s.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
+/**
+ * A decoder that has come off the rails repeats itself. In a language with
+ * spaces that reads "the the the"; in one without, 更多的推出更多的推出 with
+ * nothing in between — which the word-boundary form cannot see. Whisper looped
+ * that way on a Mandarin video and turned 17 seconds into 381 characters,
+ * which became 128 English words and asked the voice for 54 seconds of speech
+ * to fit in the 11 the video had left.
+ *
+ * Three repeats, never two, so reduplication a speaker really uses — 謝謝,
+ * 看看, 慢慢来, 爸爸妈妈, 好好学习天天向上 — is left alone.
+ */
+export const collapseLoops = (text) => String(text)
+  .replace(/\b(\w+)(?:[\s,]+\1\b){2,}/giu, "$1")
+  .replace(new RegExp(`([${CJK}]{1,12}?)\\1{2,}`, "gu"), "$1")
+  .trim();
 
 /** opensubs' cleanup: drop invented sign-offs and non-speech labels, collapse decoder loops. */
 export function clean(segs) {
   const kept = [];
   for (const s of segs) {
-    const text = s.text.replace(/\b(\w+)(?:[\s,]+\1\b){2,}/giu, "$1").trim();
+    const text = collapseLoops(s.text);
     const words = text.replace(/[[\]()♪♫*_-]/g, " ").toLowerCase().split(/\s+/).filter(Boolean);
     const label = !squash(text) || (words.length && words.filter((w) => LABELS.has(squash(w))).length / words.length >= 0.6);
     const signOff = SIGN_OFFS.has(squash(text)) && s.end - s.start < 2.5 && segs.length > 1;
@@ -214,7 +285,7 @@ export function parseJson(text) {
 }
 
 export function similarity(a, b) {
-  const sq = (s) => [...s.toLowerCase().replace(/[\W_]+/gu, "")];
+  const sq = (s) => [...s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "")];   // any script, as squash()
   a = sq(a); b = sq(b);
   if (!a.length || !b.length) return 0;
   const m = matchBlocks(a, b).length;

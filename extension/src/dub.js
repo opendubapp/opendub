@@ -77,7 +77,7 @@ function paint(job) {
     li.className = state === "done" ? "done" : job.stage === s.key ? "doing" : "";
     return li;
   }));
-  $("#log").textContent = job.log.slice(-12).map((l) => `${l.t.toFixed(1)}s  ${l.msg}`).join("\n");
+  $("#log").textContent = job.log.slice(-40).map((l) => `${l.t.toFixed(1)}s  ${l.msg}`).join("\n");
 }
 
 $("#start").addEventListener("click", async () => {
