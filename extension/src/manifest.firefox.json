@@ -50,5 +50,11 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; object-src 'self'"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "opendub@opendub.app",
+      "strict_min_version": "121.0"
+    }
   }
 }
