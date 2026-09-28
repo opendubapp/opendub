@@ -1,0 +1,21 @@
+:root { color-scheme: light dark; --ink: #10161a; --muted: #62727a; --line: #dde3e6; --accent: #00a37a; --paper: #f4f6f7; --card: #fff; }
+@media (prefers-color-scheme: dark) { :root { --ink: #eaf1f3; --muted: #93a4ab; --line: #26343a; --paper: #0d1316; --card: #141c20; } }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.6 -apple-system, "Segoe UI", system-ui, sans-serif; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 22px 20px 60px; }
+header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.mark { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; background: var(--ink); color: var(--paper); }
+.spacer { flex: 1; }
+.muted { color: var(--muted); font-size: 12.5px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: end; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+select, input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--card); color: var(--ink); min-width: 170px; }
+button.primary, a.primary { font: inherit; font-weight: 600; padding: 8px 16px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; cursor: pointer; text-decoration: none; display: inline-block; }
+button.primary:disabled { background: var(--line); color: var(--muted); cursor: default; }
+a.secondary { font: inherit; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; }
+ol { margin: 0 0 10px; padding-left: 20px; }
+ol li { color: var(--muted); }
+ol li.doing { color: var(--ink); font-weight: 600; }
+ol li.done { color: var(--accent); }
+pre { margin: 0; max-height: 180px; overflow: auto; font-size: 11.5px; color: var(--muted); white-space: pre-wrap; }
+video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 12px; }
