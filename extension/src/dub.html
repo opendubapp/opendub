@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OpenDub</title>
+<link rel="stylesheet" href="dub.css" />
+<body>
+<main class="wrap">
+  <header>
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>
+    </span>
+    <b>OpenDub</b>
+    <span class="spacer"></span>
+    <span id="source" class="muted"></span>
+  </header>
+
+  <section class="card">
+    <div class="row">
+      <label>Spoken in <select id="from"></select></label>
+      <label>Dub into <select id="to"></select></label>
+    </div>
+    <div class="row">
+      <label>Voice
+        <select id="voice">
+          <option value="local">The app on this computer — free</option>
+          <option value="higgs">Higgs Audio — your own key</option>
+        </select>
+      </label>
+      <label id="keywrap" hidden>Key <input id="key" type="password" placeholder="bai-…" autocomplete="off" /></label>
+    </div>
+    <button id="start" class="primary" disabled>Fetching the video…</button>
+    <p id="note" class="muted"></p>
+  </section>
+
+  <section id="progress" class="card" hidden>
+    <ol id="stages"></ol>
+    <pre id="log"></pre>
+  </section>
+
+  <section id="done" class="card" hidden>
+    <video id="player" controls playsinline></video>
+    <div class="row">
+      <a id="save" class="primary" download>Save the dubbed video</a>
+      <a id="subs" class="secondary" download>Subtitles</a>
+    </div>
+  </section>
+</main>
+<script type="module" src="dub.js"></script>
+</body>
+</html>

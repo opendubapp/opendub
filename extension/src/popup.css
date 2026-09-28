@@ -1,0 +1,13 @@
+:root { color-scheme: light dark; --ink: #10161a; --muted: #62727a; --line: #dde3e6; --accent: #00a37a; --paper: #fff; }
+@media (prefers-color-scheme: dark) { :root { --ink: #eaf1f3; --muted: #93a4ab; --line: #26343a; --paper: #12191c; } }
+body { width: 320px; margin: 0; padding: 12px 14px 10px; font: 13px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif; color: var(--ink); background: var(--paper); }
+header { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+.mark { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: var(--ink); color: var(--paper); }
+.list { display: flex; flex-direction: column; gap: 8px; color: var(--muted); }
+.item { border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; }
+.item b { display: block; color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .meta { color: var(--muted); font-size: 12px; }
+.item button { margin-top: 7px; font: inherit; font-weight: 600; padding: 5px 12px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; cursor: pointer; }
+.item.cant button { background: var(--line); color: var(--muted); cursor: not-allowed; }
+.foot { margin: 12px 0 0; padding-top: 9px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }
+a { color: var(--accent); }
