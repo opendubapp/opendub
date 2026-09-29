@@ -42,7 +42,14 @@ const profile = await mkdtemp(join(tmpdir(), "opendub-dub-"));
 const browser = await chromium.launchPersistentContext(profile, {
   channel: "chromium",
   timeout: 120000,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  // With WebGPU on, because that is the path a person gets and the path
+  // that broke: APP-191 was "no available backend found" on the WebGPU
+  // runtime, and two handoffs said it could not be checked here. It can.
+  // Headless Chromium simply does not enable WebGPU unless asked, and
+  // without these the run quietly used the wasm build instead. Drop them
+  // to exercise that one.
+  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`,
+    "--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-angle=metal"],
 });
 const id = [...createHash("sha256").update(EXT).digest().subarray(0, 16)]
   .flatMap((b) => [b >> 4, b & 15]).map((n) => "abcdefghijklmnop"[n]).join("");
@@ -55,6 +62,9 @@ page.on("pageerror", (e) => errors.push(String(e).slice(0, 160)));
 // This machine has no GPU, so the WebGPU path cannot run here — but the
 // failure was a module that could not be imported, and that can be proven.
 await page.goto(`chrome-extension://${id}/popup.html`, { waitUntil: "load" });
+const onGpu = await page.evaluate(async () => !!(navigator.gpu && await navigator.gpu.requestAdapter()));
+check("WebGPU is available to the extension's own pages", onGpu, onGpu ? "the dub below runs on it" : "falling back to wasm");
+
 for (const f of ["ort-wasm-simd-threaded.jsep.mjs", "ort-wasm-simd-threaded.asyncify.mjs", "ort-wasm-simd-threaded.mjs"]) {
   const ok = await page.evaluate(async (file) => {
     try { return !!(await import(chrome.runtime.getURL(`browser/ort/${file}`))); } catch { return false; }
