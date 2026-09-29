@@ -51,7 +51,7 @@ export function naturalSeconds(text, lang) {
  * that overruns a little is a smaller fault than one gabbled to fit.
  *
  * The two ceilings are not preferences. A line may not outlive the video and
- * may not swallow the one after it: a runaway transcription of jerry's last
+ * may not swallow the one after it: a runaway transcription of one report's last
  * line asked for 54.6 s of speech to sit in the 10.9 s the video had left,
  * and the engine gives you exactly the length you ask it for.
  */

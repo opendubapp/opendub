@@ -1,8 +1,8 @@
 // What Whisper heard → the lines we actually dub.
 //   node tests/lines.mjs
 //
-// jerry dubbed a 41-second Mandarin video into English and reported that the
-// Chinese was still audible underneath (APP-191). It was: of the 11 segments
+// A user dubbed a 41-second Mandarin video into English and reported that the
+// Chinese was still audible underneath. It was: of the 11 segments
 // Whisper returned, clean() kept 1 — the only one with Latin letters in it —
 // so 34 of the 41 seconds were never dubbed at all. \W is ASCII-only however
 // the u flag is set, so squash() emptied every Chinese line, and an empty
@@ -18,7 +18,7 @@ const check = (name, ok, detail = "") => { checks.push({ ok }); console.log(`${o
 const lines = (segs) => clean(segment(wordsFromSegments(
   segs.map(([text, start, end], id) => ({ id, text, start, end })))));
 
-// --- jerry's video, as Whisper transcribed it --------------------------------
+// --- a reported video, as Whisper transcribed it -----------------------------
 {
   const heard = [
     ["大家好,我是戈非。", 0.0, 2.4], ["人在国内做出海网站,赚全球人民的钱。", 2.4, 6.5],
@@ -50,7 +50,7 @@ const lines = (segs) => clean(segment(wordsFromSegments(
 }
 
 // --- a decoder that came off the rails ---------------------------------------
-// Whisper-base really returned this on jerry's video: 更多的推出 fifty times,
+// Whisper-base really returned this on a reported video: 更多的推出 fifty times,
 // then 共同 sixty more, 381 characters for 17 seconds of speech. Untouched it
 // became 128 English words and asked the voice for 54 seconds.
 {
@@ -88,7 +88,7 @@ const lines = (segs) => clean(segment(wordsFromSegments(
   const en = language("en");
   const ask = (o) => fitSeconds(o, en).want;
 
-  // jerry's last line, as it really came out: 128 words of runaway translation
+  // That report's last line, as it really came out: 128 words of runaway translation
   // on a line starting at 30.2 s of a 41.2 s video. It asked for 54.6 s.
   const runaway = { text: "together, ".repeat(128), start: 30.2, end: 41.2, nextStart: 41.2, videoEnd: 41.2 };
   check("a line can no longer outlive the video", ask(runaway) <= 11.01, `asks ${ask(runaway).toFixed(1)} s with 11.0 s left`);
