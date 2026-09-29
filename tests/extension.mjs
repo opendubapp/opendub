@@ -8,7 +8,7 @@
 // This exists because the first version of the manifest would not install at
 // all: Chrome rejects "blob:" in an extension page's CSP, and the only sign
 // was the extension silently not being there. A test that loads it for real
-// is the one that would have caught that (APP-190).
+// is the one that would have caught that.
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
@@ -71,7 +71,7 @@ const id = [...createHash("sha256").update(EXT).digest().subarray(0, 16)]
   .flatMap((b) => [b >> 4, b & 15]).map((n) => "abcdefghijklmnop"[n]).join("");
 
 // If the manifest is refused there is no popup page, which is exactly how
-// APP-190 showed up: the extension was simply not there.
+// that failure showed up: the extension was simply not there.
 const popup = await browser.newPage();
 const loaded = await popup.goto(`chrome-extension://${id}/popup.html`).catch(() => null);
 check("Chrome accepts the manifest and loads the extension", loaded?.status() === 200,
@@ -147,7 +147,7 @@ const askContentScript = async (page) => {
 
 // --- the runtime is whole ----------------------------------------------------
 // A dub asked for ort-wasm-simd-threaded.asyncify.mjs at its third step and
-// stopped, because the build had left it out to save 26 MB (APP-191). The
+// stopped, because the build had left it out to save 26 MB. The
 // runtime picks a file by name at that moment, so every one it might name has
 // to be there — and reachable from inside the extension, not merely on disk.
 {

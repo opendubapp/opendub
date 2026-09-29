@@ -1,6 +1,6 @@
 // The dub card and the result's file row, in a real browser against the built site.
 //   node tests/card.mjs [dir-or-url]
-// Covers APP-170 (the button said nothing when it could not run) and APP-167
+// Covers the button that said nothing when it could not run, and the one
 // (a missing file printed a bare "null" between the download buttons).
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
@@ -47,7 +47,7 @@ await page.goto(site.url, { waitUntil: "networkidle" });
 
 const start = page.locator("#bstart");
 
-// APP-170 — every state of the button names the step that is missing.
+// Every state of the button must name the step that is missing.
 check("with no key, the button says which key to enter",
   /Enter your .* key/.test(await start.textContent()), await start.textContent());
 
@@ -63,7 +63,7 @@ const freeLabel = await start.textContent();
 check("the free route offers to look for the app, and the button is live",
   /Look for the app/.test(freeLabel) && !(await start.isDisabled()), `${freeLabel}, disabled=${await start.isDisabled()}`);
 
-// The click must do something visible — that is the whole of APP-170.
+// The click must do something visible — that is the whole point.
 const statusBefore = await page.locator("#bomni-status").textContent();
 await start.click();
 await page.waitForTimeout(2500);
@@ -75,7 +75,7 @@ check("pressing it changes the status instead of doing nothing",
   statusAfter !== statusBefore || /Looking|Install it in one line|Download OpenDub|OpenDub app/.test(statusAfter),
   statusAfter.replace(/\s+/g, " ").trim().slice(0, 80));
 
-// APP-167 — the demo result has no separate audio file; that must not print "null".
+// The demo result has no separate audio file; that must not print "null".
 await page.goto(`${site.url}#demo`, { waitUntil: "networkidle" });
 await page.waitForSelector("#downloads a", { timeout: 15000 });
 const filesText = (await page.locator("#downloads").innerText()).trim();
@@ -83,7 +83,7 @@ check("the files row has no bare null", !/(^|\s)null(\s|$)/.test(filesText), fil
 check("the files row still lists the video and both subtitle files",
   (await page.locator("#downloads a").count()) >= 4, `${await page.locator("#downloads a").count()} buttons`);
 
-// APP-182 — someone who picks the free voice usually does not have the app yet.
+// Someone who picks the free voice usually does not have the app yet.
 // Whoever runs this test may have it running, so refuse the localhost probe and
 // test the state a first-time visitor is actually in.
 await page.route("**/127.0.0.1:8910/**", (route) => route.abort());
@@ -115,7 +115,7 @@ const cardBox = await page.locator("#dub-here").boundingBox();
 check("the card is on screen after pressing it",
   !!cardBox && cardBox.y < 900 && cardBox.y + cardBox.height > 0, `y=${cardBox && Math.round(cardBox.y)}`);
 
-// APP-188 — the result's "Download video" must save a file, not navigate the
+// The result's "Download video" must save a file, not navigate the
 // tab to a blob and lose the dub behind a Back button.
 await page.goto(`${site.url}#demo`, { waitUntil: "networkidle" });
 await page.waitForSelector("#downloads a");

@@ -346,7 +346,7 @@ section { scroll-margin-top: 5.5rem; }
 .local-engine { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); }
 .local-engine .oa-input { height: var(--control-h-md); }
 
-/* --- installing the free voice from the card (APP-182) ---------------------
+/* --- installing the free voice from the card ------------------------------
    Someone who picks the free voice usually does not have the app yet, so the
    card hands them the one line that installs it rather than a command that
    assumes a checkout. */
@@ -396,7 +396,7 @@ section { scroll-margin-top: 5.5rem; }
 .install-outcome { display: flex; flex-direction: column; gap: 6px; }
 .install-outcome > b { color: var(--text-strong); }
 
-/* The note on a dub that came back from storage (APP-189). */
+/* The note on a dub that came back from storage. */
 .kept-note { color: var(--text-faint); text-transform: none; letter-spacing: 0; }
 .kept-remove {
   font: inherit; text-transform: none; letter-spacing: 0; padding: 0; cursor: pointer;

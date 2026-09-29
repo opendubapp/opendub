@@ -1,4 +1,4 @@
-// A dub made in the tab must survive a reload (APP-189).
+// A dub made in the tab must survive a reload.
 //   node tests/keep.mjs [dir-or-url]
 // The pipeline itself takes minutes and a provider, so this drives the page's
 // own store with a dub-shaped job: save it, reload the page, and check the

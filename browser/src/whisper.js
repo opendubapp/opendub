@@ -18,7 +18,7 @@ export async function transcribe(mono16k, { language, onProgress } = {}) {
   const webgpu = await gpu();
   if (!cache) {
     const files = new Map();
-    // small, not base. Base loses whole passages of Mandarin: on jerry's video
+    // small, not base. Base loses whole passages of Mandarin: on one reported video
     // it returned nothing at all for the first eight seconds and looped for
     // the last seventeen, and the dub was of what it invented. small hears the
     // same file from 0.00 and gets the opening sentence right.

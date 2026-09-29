@@ -1,8 +1,8 @@
 // A whole dub, inside the extension. Slow on purpose.
 //   node tests/extension-dub.mjs [seconds]
 //
-// The file checks in tests/extension.mjs would not have caught what APP-191
-// actually was: the runtime asks for a file by name when it starts a model,
+// The file checks in tests/extension.mjs would not have caught what the
+// real fault was: the runtime asks for a file by name when it starts a model,
 // and the dub died at step three with "no available backend found". The only
 // test that settles that is one that starts a model — so this loads the
 // extension, hands it a real video, and waits for a dubbed file to come out.
@@ -43,8 +43,8 @@ const browser = await chromium.launchPersistentContext(profile, {
   channel: "chromium",
   timeout: 120000,
   // With WebGPU on, because that is the path a person gets and the path
-  // that broke: APP-191 was "no available backend found" on the WebGPU
-  // runtime, and two handoffs said it could not be checked here. It can.
+  // that broke: "no available backend found" came from the WebGPU runtime,
+  // and it was twice reported as impossible to check here. It is not.
   // Headless Chromium simply does not enable WebGPU unless asked, and
   // without these the run quietly used the wasm build instead. Drop them
   // to exercise that one.

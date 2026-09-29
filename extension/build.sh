@@ -25,7 +25,7 @@ for target in chrome firefox; do
   cp -R "$BUNDLE" "$out/browser"
   # Every runtime file the site ships, with none left out. Dropping the
   # asyncify build to save 26 MB broke WebGPU at the third step of a dub —
-  # the runtime asks for it by name and the whole thing stops (APP-191).
+  # the runtime asks for it by name and the whole thing stops.
   site_files=$(ls "$BUNDLE/ort" | sort)
   ext_files=$(ls "$out/browser/ort" | sort)
   [ "$site_files" = "$ext_files" ] || { echo "$target: the runtime is not the one the site ships"; exit 1; }
@@ -34,7 +34,7 @@ for target in chrome firefox; do
   # for "no WASM" is eval(), which it also refuses. The asynchronous path it
   # takes next works here, so the fallback is removed rather than the test:
   # without this a dub runs for three minutes and dies at the last step
-  # (APP-191). The site is untouched; its CSP allows the test.
+  # The site is untouched; its CSP allows the test.
   patched=0
   for worker in "$out/browser/assets/"jassub-worker-*.js; do
     [ -f "$worker" ] || continue
