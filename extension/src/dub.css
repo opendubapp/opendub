@@ -19,3 +19,6 @@ ol li.doing { color: var(--ink); font-weight: 600; }
 ol li.done { color: var(--accent); }
 pre { margin: 0; max-height: 180px; overflow: auto; font-size: 11.5px; color: var(--muted); white-space: pre-wrap; }
 video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 12px; }
+label.check { flex-direction: row; align-items: center; gap: 7px; color: var(--ink); margin-bottom: 4px; }
+label.check input { min-width: 0; }
+#remove-note { margin: 0 0 12px; }

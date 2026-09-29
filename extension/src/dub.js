@@ -92,6 +92,7 @@ $("#start").addEventListener("click", async () => {
     exactDuration: provider === "local",
     key: $("#key").value.trim(),
     translateKey: provider === "higgs" ? $("#key").value.trim() : null,
+    removeVoice: $("#remove").checked,
     tone: true,
     // Subtitles cannot be burned in here: libass is Emscripten, and an
     // extension's content-security-policy refuses the `new Function` its glue
