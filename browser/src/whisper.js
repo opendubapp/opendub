@@ -9,14 +9,48 @@ env.backends.onnx.wasm.wasmPaths = new URL("/browser/ort/", location.href).href;
 env.allowLocalModels = false;
 
 let cache = null;
+let cachedOn = null;
 
 export async function gpu() {
   try { return !!(navigator.gpu && (await navigator.gpu.requestAdapter())); } catch { return false; }
 }
 
+// The decoder is a 150 MB buffer. WebGPU only promises 128 MB for one binding
+// and 256 MB for one buffer, and plenty of adapters report exactly that; this
+// machine reports 4096 MB, which is why choosing the larger model here looked
+// safe and was not. On an adapter with the standard limits the run spent
+// twenty-three minutes and then died inside the runtime's buffer manager —
+// "Mapping WebGPU buffer failed: Invalid buffer". So ask the adapter first,
+// and where it cannot hold the model use the processor, which is slower and
+// right, rather than the smaller model, which is quicker and invents words.
+const NEEDS_BINDING = 200 * 1024 * 1024;
+const NEEDS_BUFFER = 300 * 1024 * 1024;
+
+async function gpuCanHoldIt() {
+  try {
+    const a = navigator.gpu && (await navigator.gpu.requestAdapter());
+    if (!a) return false;
+    return a.limits.maxStorageBufferBindingSize >= NEEDS_BINDING && a.limits.maxBufferSize >= NEEDS_BUFFER;
+  } catch { return false; }
+}
+
 export async function transcribe(mono16k, { language, onProgress } = {}) {
-  const webgpu = await gpu();
-  if (!cache) {
+  const webgpu = await gpuCanHoldIt();
+  try {
+    return await listen(mono16k, webgpu, language, onProgress);
+  } catch (e) {
+    if (!webgpu) throw e;
+    // The adapter said it had room and the runtime still could not use it.
+    // Losing the dub over that is worse than being slow.
+    cache = null; cachedOn = null;
+    onProgress?.(0, "The GPU could not run the model; using the processor instead");
+    return await listen(mono16k, false, language, onProgress);
+  }
+}
+
+async function listen(mono16k, webgpu, language, onProgress) {
+  if (!cache || cachedOn !== webgpu) {
+    cachedOn = webgpu;
     const files = new Map();
     // small, not base. Base loses whole passages of Mandarin: on one reported video
     // it returned nothing at all for the first eight seconds and looped for
