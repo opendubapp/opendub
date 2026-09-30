@@ -83,7 +83,20 @@ async function builtInTranslator(prepared, source, target, log) {
  * fine, and when it does not we say so here rather than at step four.
  */
 async function assertTranslatable(source, target, chatter, prepared, log) {
-  if (chatter || !source || source === target.iso) return;
+  if (chatter) {
+    // A key that cannot pay is found out on the first line otherwise, which
+    // on one run was ten minutes in — 5:34 of it separating the voice. One
+    // tiny request settles it now, for a few tokens.
+    try {
+      await chatter.chat("Reply with JSON only.", '{"say":"ok"}', 16);
+    } catch (e) {
+      const why = String(e && e.message || e);
+      if (/out of credit|was refused|quota/i.test(why)) throw new Error(`${why} Translation needs it, so nothing else is worth doing first.`);
+      log(`The key did not answer a test request (${why}); carrying on anyway`);
+    }
+    return;
+  }
+  if (!source || source === target.iso) return;
   if (localTranslator(source, target.iso)) return;              // a model of ours covers it
   const name = core.language(source)?.name || source;
   const advice = `Add a Higgs key, or pick a pair this device has a model for.`;
@@ -121,8 +134,9 @@ export async function dub(file, opts, emit) {
     // Before anything expensive: if this pair cannot be translated, the dub
     // cannot finish, and finding that out after separation and Whisper costs
     // minutes for the same answer. Auto-detect has to wait for Whisper.
-    if (opts.source && opts.source !== "auto") {
-      await assertTranslatable(core.language(opts.source).iso, target, chatter, opts.translator, log);
+    if (chatter || (opts.source && opts.source !== "auto")) {
+      const iso = opts.source && opts.source !== "auto" ? core.language(opts.source).iso : null;
+      await assertTranslatable(iso, target, chatter, opts.translator, log);
     }
 
     // 2 — separate (optional, on this device)
