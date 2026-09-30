@@ -92,6 +92,19 @@ function paint(job) {
 }
 
 $("#start").addEventListener("click", async () => {
+  // The app is looked for once, when the page opens, and if it does not answer
+  // then the free voice is taken away and the paid one put in its place. Start
+  // the app a moment later and the page still believes it is not there — so
+  // someone using the free voice presses Dub and is told their key was
+  // refused, for a key they never meant to use. Look again here.
+  const free = $("#voice").querySelector('option[value="local"]');
+  if (free.disabled && await localAppStatus()) {
+    free.disabled = false;
+    free.textContent = "The app on this computer — free";
+    $("#voice").value = "local";
+    $("#keywrap").hidden = true;
+    $("#note").textContent = "Found the app on this computer; using the free voice.";
+  }
   const provider = $("#voice").value;
   // An empty box sends an empty key, the server answers 401, and the page says
   // the key was refused — which reads as a broken key rather than a missing one.
