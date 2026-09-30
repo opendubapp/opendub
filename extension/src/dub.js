@@ -92,9 +92,16 @@ function paint(job) {
 }
 
 $("#start").addEventListener("click", async () => {
+  const provider = $("#voice").value;
+  // An empty box sends an empty key, the server answers 401, and the page says
+  // the key was refused — which reads as a broken key rather than a missing one.
+  if (provider === "higgs" && !$("#key").value.trim()) {
+    $("#note").textContent = "Add your key first, or install the app on this computer and use the free voice.";
+    $("#key").focus();
+    return;
+  }
   $("#start").disabled = true;
   $("#progress").hidden = false;
-  const provider = $("#voice").value;
   const done = await dub(file, {
     target: $("#to").value,
     source: $("#from").value,
