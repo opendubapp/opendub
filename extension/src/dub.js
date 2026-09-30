@@ -75,6 +75,17 @@ function paint(job) {
     li.textContent = s.label || s.key;
     const state = job.stages[s.key]?.status;
     li.className = state === "done" ? "done" : job.stage === s.key ? "doing" : "";
+    // The step being worked on says what it is doing and how far along it is.
+    // Without this the page is silent through a model download and minutes of
+    // listening, and a slow step is indistinguishable from a stuck one — which
+    // is what it was reported as.
+    if (job.stage === s.key && (job.note || job.stage_progress)) {
+      const pct = job.stage_progress > 0 ? ` ${Math.round(job.stage_progress * 100)}%` : "";
+      const b = document.createElement("span");
+      b.className = "doing-note";
+      b.textContent = ` — ${job.note || "working"}${pct}`;
+      li.append(b);
+    }
     return li;
   }));
   $("#log").textContent = job.log.slice(-40).map((l) => `${l.t.toFixed(1)}s  ${l.msg}`).join("\n");

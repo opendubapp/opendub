@@ -22,3 +22,4 @@ video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 12px; 
 label.check { flex-direction: row; align-items: center; gap: 7px; color: var(--ink); margin-bottom: 4px; }
 label.check input { min-width: 0; }
 #remove-note { margin: 0 0 12px; }
+.doing-note { color: var(--muted); font-weight: 400; }
