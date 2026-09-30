@@ -89,6 +89,10 @@ await page.click("#start");
 // Watch the stages rather than a spinner: a failure names the step it died on.
 const started = Date.now();
 let last = "";
+// A step that says nothing for minutes reads as a step that has died. The
+// model download alone is 240 MB, and the page used to show only a bold
+// heading while it ran — which is how it was reported: "stuck on step 3".
+let sawNote = false;
 while (Date.now() - started < BUDGET) {
   await page.waitForTimeout(4000);
   const state = await page.evaluate(() => ({
@@ -97,6 +101,7 @@ while (Date.now() - started < BUDGET) {
     log: document.querySelector("#log")?.textContent || "",
   }));
   if (state.doing && state.doing !== last) { last = state.doing; console.log(`      … ${last} (${Math.round((Date.now() - started) / 1000)}s)`); }
+  if (/—/.test(state.doing)) sawNote = true;
   if (state.done) break;
   if (/no available backend|Failed to fetch dynamically|did not finish|Failed:/i.test(state.log)) {
     check("the dub ran without a backend error", false, state.log.split("\n").slice(-2).join(" ").slice(0, 150));
@@ -110,6 +115,8 @@ const result = await page.evaluate(() => ({
   save: document.querySelector("#save")?.getAttribute("download") || "",
   log: document.querySelector("#log")?.textContent || "",
 }));
+check("the step being worked on says what it is doing", sawNote,
+  sawNote ? "" : "the page showed only a bold heading for the whole run");
 check("a dub finishes inside the extension", result.done, result.done ? "" : result.log.split("\n").slice(-2).join(" ").slice(0, 150));
 check("it produced a playable file", /^blob:/.test(result.src), result.src.slice(0, 40));
 check("saved under the video's own name", /^clip\.zh-Hans\.mp4$/.test(result.save), result.save);

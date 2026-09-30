@@ -24,8 +24,20 @@ export const translateLocally = async (...a) => (await import("./translate-local
  * extension will not even install with it. Slower on the processor, and the
  * only way the same pipeline runs in both places.
  */
+/**
+ * Settings for a page that may not build a worker from a blob: URL.
+ *
+ * An extension is one — MV3 refuses blob: in its policy, and the runtime's
+ * "proxy" mode builds its worker that way, so that stays off. Threads are a
+ * different thing and were switched off with it by mistake: the runtime makes
+ * those from its own file, which an extension page is allowed to do, and
+ * SharedArrayBuffer is there even though the page is not cross-origin
+ * isolated. Listening to a 41-second video took 70 seconds on one thread.
+ */
 export async function singleThreaded() {
   const { env } = await import("@huggingface/transformers");
-  env.backends.onnx.wasm.numThreads = 1;
   env.backends.onnx.wasm.proxy = false;
+  env.backends.onnx.wasm.numThreads =
+    typeof SharedArrayBuffer === "undefined" ? 1
+      : Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1));
 }

@@ -113,7 +113,10 @@ export async function dub(file, opts, emit) {
   const job = { id: "browser", filename: file.name, status: "running", stage: "", stage_progress: 0, stages: {}, log: [], created, options: opts, result: null };
   const log = (msg) => { job.log.push({ t: +(Date.now() / 1000 - created).toFixed(1), msg }); emit(job); };
   let t0 = 0;
-  const begin = (k) => { job.stage = k; job.stage_progress = 0; job.stages[k] = { status: "running" }; t0 = performance.now(); emit(job); };
+  // The note belongs to the step that set it. Left standing it follows the
+  // next one and lies about it — "Clone the voice and speak \u2014 Translating
+  // on this device 17%".
+  const begin = (k) => { job.stage = k; job.stage_progress = 0; job.note = ""; job.stages[k] = { status: "running" }; t0 = performance.now(); emit(job); };
   const progress = (f, note) => { job.stage_progress = Math.max(0, Math.min(1, f || 0)); if (note) job.note = note; emit(job); };
   const end = (k) => { job.stages[k] = { status: "done", seconds: +((performance.now() - t0) / 1000).toFixed(1) }; emit(job); };
 
