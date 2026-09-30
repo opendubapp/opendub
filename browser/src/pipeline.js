@@ -69,6 +69,32 @@ async function builtInTranslator(prepared, source, target, log) {
   }
 }
 
+/**
+ * Can anything here translate this pair? Asked before the expensive steps.
+ *
+ * Separation and Whisper cost minutes, and a pair the browser cannot
+ * translate fails just the same after them: a 4:18 video spent 1:35
+ * separating and 2:24 listening, then died at step four on Chrome wanting a
+ * click it could no longer have. Whatever the answer, it is cheaper now.
+ *
+ * Chrome will only start a language-pack download from a user gesture, so a
+ * translator created minutes after the click throws. `prepared` is the one
+ * asked for while the click still counted; when it covers this pair we are
+ * fine, and when it does not we say so here rather than at step four.
+ */
+async function assertTranslatable(source, target, chatter, prepared, log) {
+  if (chatter || !source || source === target.iso) return;
+  if (localTranslator(source, target.iso)) return;              // a model of ours covers it
+  const name = core.language(source)?.name || source;
+  const advice = `Add a Higgs key, or pick a pair this device has a model for.`;
+  if (!("Translator" in self)) throw new Error(`Nothing on this device can translate ${name} \u2192 ${target.name}. ${advice}`);
+  let state = "";
+  try { state = await self.Translator.availability({ sourceLanguage: source, targetLanguage: target.iso }); } catch { /* older shapes */ }
+  if (state === "available" || prepared) return;
+  if (state === "unavailable" || !state) throw new Error(`This browser cannot translate ${name} \u2192 ${target.name}, and nothing on this device can either. ${advice}`);
+  throw new Error(`Chrome has not downloaded its ${name} \u2192 ${target.name} pack yet, and it will only start that from a click. Set \u201cSpoken in\u201d to ${name} and press Dub again \u2014 that click can start it \u2014 or add a Higgs key.`);
+}
+
 export async function dub(file, opts, emit) {
   const created = Date.now() / 1000;
   const job = { id: "browser", filename: file.name, status: "running", stage: "", stage_progress: 0, stages: {}, log: [], created, options: opts, result: null };
@@ -91,6 +117,13 @@ export async function dub(file, opts, emit) {
     const [L, R] = await A.decodeStereo(file);
     log(`${info.width}×${info.height}, ${info.duration.toFixed(1)} s`);
     end("probe");
+
+    // Before anything expensive: if this pair cannot be translated, the dub
+    // cannot finish, and finding that out after separation and Whisper costs
+    // minutes for the same answer. Auto-detect has to wait for Whisper.
+    if (opts.source && opts.source !== "auto") {
+      await assertTranslatable(core.language(opts.source).iso, target, chatter, opts.translator, log);
+    }
 
     // 2 — separate (optional, on this device)
     begin("separate");
@@ -136,24 +169,42 @@ export async function dub(file, opts, emit) {
     begin("translate");
     const sourceName = lang ? core.language(lang).name : "the original language";
     let texts;
+    const from = lang || "en";
+    // Firefox has no translator of its own, so bring one: opus-mt in this tab,
+    // downloaded once and cached by the browser. Also the safety net under
+    // Chrome's, which can fail at any point and not only when it is created.
+    const translateHere = async () => {
+      const { translateLocally } = await import("./translate-local.js");
+      log(`Translating here with opus-mt (${from} → ${target.iso}); the model downloads once`);
+      const out = await translateLocally(segs.map((s) => s.text), from, target.iso,
+                                         (f) => progress(f, "Translating on this device"));
+      log("Translated on this device (no length budget)");
+      return out;
+    };
     if (chatter) {
       texts = await translateWithChat(chatter, segs, target, sourceName, log);
-    } else if ("Translator" in self && await usableBuiltIn(opts.translator, lang || "en", target, log)) {
-      const tr = await builtInTranslator(opts.translator, lang || "en", target, log);
-      texts = []; for (const s of segs) texts.push(await tr.translate(s.text));
-      log("Translated by this browser's built-in translator (no length budget)");
-    } else if (localTranslator(lang || "en", target.iso)) {
-      // Firefox has no translator of its own, so bring one: opus-mt in this
-      // tab, downloaded once and cached by the browser.
-      const { translateLocally } = await import("./translate-local.js");
-      log(`Translating here with opus-mt (${lang || "en"} → ${target.iso}); the model downloads once`);
-      texts = await translateLocally(segs.map((s) => s.text), lang || "en", target.iso,
-                                     (f) => progress(f, "Translating on this device"));
-      log("Translated on this device (no length budget)");
+    } else if ("Translator" in self && await usableBuiltIn(opts.translator, from, target, log)) {
+      try {
+        const tr = await builtInTranslator(opts.translator, from, target, log);
+        const out = [];
+        for (const s of segs) out.push(await tr.translate(s.text));
+        texts = out;
+        log("Translated by this browser's built-in translator (no length budget)");
+      } catch (e) {
+        // translate() can throw long after create() succeeded — a pack that is
+        // still downloading wants a user gesture, and by now the click is
+        // minutes gone. Losing the separation and the transcription over that
+        // is the worst possible answer when a model of ours covers the pair.
+        if (!localTranslator(from, target.iso)) throw e;
+        log(`This browser's translator stopped part-way (${e.message || e}); translating here instead`);
+        texts = await translateHere();
+      }
+    } else if (localTranslator(from, target.iso)) {
+      texts = await translateHere();
     } else {
       // A pair with no model here, in a browser with no translator of its own.
-      const from = core.language(lang || "en")?.name || lang || "the spoken language";
-      throw new Error(`Nothing on this device can translate ${from} → ${target.name}. Add a Higgs key, or use Chrome, whose built-in translator covers more pairs.`);
+      const name = core.language(from)?.name || from;
+      throw new Error(`Nothing on this device can translate ${name} → ${target.name}. Add a Higgs key, or use Chrome, whose built-in translator covers more pairs.`);
     }
     let tones = segs.map(() => null);
     if (opts.tone !== false && chatter && provider.id === "higgs") {
