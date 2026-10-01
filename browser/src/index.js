@@ -1,7 +1,7 @@
 // OpenDub in the browser. Loaded by the page only when it has no backend.
 export { dub, STAGES } from "./pipeline.js";
 export { LANGUAGES } from "./core.js";
-export { localAppStatus } from "./providers.js";
+export { localAppStatus, LOCAL_APP } from "./providers.js";
 
 /** What this browser can do, so the page offers only what will work. */
 export async function capabilities() {
