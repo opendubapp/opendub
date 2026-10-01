@@ -24,6 +24,15 @@ VERSION="1.0.0"
 NOTARIZE=0
 [ "${1:-}" = "--notarize" ] && { NOTARIZE=1; OUT=build; }
 
+# Never over a bundle that is running. Deleting it under a live app leaves a
+# process whose files are gone, and quitting it stops the server it started —
+# so a dub running anywhere else dies with it. A seven-minute run was lost
+# that way, because this script was run while the app was open.
+if pgrep -f "installer/macos/build/.*OpenDub.app/Contents/MacOS/OpenDub" >/dev/null 2>&1; then
+  echo "OpenDub is running from build/. Quit it first: rebuilding would pull its files out from under it." >&2
+  exit 1
+fi
+
 rm -rf build && mkdir -p "build/$APP/Contents/MacOS" "build/$APP/Contents/Resources"
 
 # --- the binary -------------------------------------------------------------
@@ -51,6 +60,17 @@ cat > "build/$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <!-- So a page can ask for the app by name. A browser extension cannot start
+       a program, but it can ask the system to open opendub://, and the system
+       knows which application that is. Without this, "Start OpenDub" from the
+       dubbing page has no way to do anything. -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key><string>app.opendub</string>
+      <key>CFBundleURLSchemes</key><array><string>opendub</string></array>
+    </dict>
+  </array>
   <!-- The interface is served by the copy of OpenDub running on this Mac, over
        plain HTTP on the loopback address. Without this the web view refuses to
        load it and the window comes up empty. Nothing else may use http. -->
