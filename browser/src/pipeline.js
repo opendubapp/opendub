@@ -82,28 +82,40 @@ async function builtInTranslator(prepared, source, target, log) {
  * asked for while the click still counted; when it covers this pair we are
  * fine, and when it does not we say so here rather than at step four.
  */
-async function assertTranslatable(source, target, chatter, prepared, log) {
+async function assertTranslatable(source, target, chatter, isVoiceKey, prepared, log) {
   if (chatter) {
     // A key that cannot pay is found out on the first line otherwise, which
     // on one run was ten minutes in — 5:34 of it separating the voice. One
     // tiny request settles it now, for a few tokens.
     try {
       await chatter.chat("Reply with JSON only.", '{"say":"ok"}', 16);
+      return chatter;
     } catch (e) {
       const why = String(e && e.message || e);
-      if (/out of credit|was refused|quota/i.test(why)) throw new Error(`${why} Translation needs it, so nothing else is worth doing first.`);
-      log(`The key did not answer a test request (${why}); carrying on anyway`);
+      if (!/out of credit|was refused|quota/i.test(why)) {
+        log(`The key did not answer a test request (${why}); carrying on anyway`);
+        return chatter;
+      }
+      // The voice itself needs this key, so there is no carrying on.
+      if (isVoiceKey) throw new Error(`${why} The voice needs it, so nothing else is worth doing first.`);
+      // Only the translation wanted it, and something else here can translate.
+      // A browser filling a saved password into the key box should cost the
+      // wording, not the dub.
+      if (!source || localTranslator(source, target.iso) || "Translator" in self) {
+        log(`${why} Translating without it.`);
+        return null;
+      }
+      throw new Error(`${why} Nothing else here can translate this pair.`);
     }
-    return;
   }
-  if (!source || source === target.iso) return;
-  if (localTranslator(source, target.iso)) return;              // a model of ours covers it
+  if (!source || source === target.iso) return chatter;
+  if (localTranslator(source, target.iso)) return chatter;      // a model of ours covers it
   const name = core.language(source)?.name || source;
   const advice = `Add a Higgs key, or pick a pair this device has a model for.`;
   if (!("Translator" in self)) throw new Error(`Nothing on this device can translate ${name} \u2192 ${target.name}. ${advice}`);
   let state = "";
   try { state = await self.Translator.availability({ sourceLanguage: source, targetLanguage: target.iso }); } catch { /* older shapes */ }
-  if (state === "available" || prepared) return;
+  if (state === "available" || prepared) return chatter;
   if (state === "unavailable" || !state) throw new Error(`This browser cannot translate ${name} \u2192 ${target.name}, and nothing on this device can either. ${advice}`);
   throw new Error(`Chrome has not downloaded its ${name} \u2192 ${target.name} pack yet, and it will only start that from a click. Set \u201cSpoken in\u201d to ${name} and press Dub again \u2014 that click can start it \u2014 or add a Higgs key.`);
 }
@@ -123,7 +135,7 @@ export async function dub(file, opts, emit) {
   const target = core.language(opts.target);
   const provider = opts.provider === "elevenlabs" ? elevenlabs(opts.key)
     : opts.provider === "local" ? local(opts.engine, !!opts.exactDuration, opts.engineName) : higgs(opts.key);
-  const chatter = provider.hasChat ? provider : opts.translateKey ? higgs(opts.translateKey) : null;
+  let chatter = provider.hasChat ? provider : opts.translateKey ? higgs(opts.translateKey) : null;
   let voice = null;
   try {
     // 1 — read
@@ -139,7 +151,7 @@ export async function dub(file, opts, emit) {
     // minutes for the same answer. Auto-detect has to wait for Whisper.
     if (chatter || (opts.source && opts.source !== "auto")) {
       const iso = opts.source && opts.source !== "auto" ? core.language(opts.source).iso : null;
-      await assertTranslatable(iso, target, chatter, opts.translator, log);
+      chatter = await assertTranslatable(iso, target, chatter, chatter === provider, opts.translator, log);
     }
 
     // 2 — separate (optional, on this device)
