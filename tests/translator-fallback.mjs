@@ -53,7 +53,7 @@ await page.addInitScript(() => {
 await page.goto(`chrome-extension://${id}/dub.html?src=${encodeURIComponent(`${origin}/clip.mp4`)}&name=clip`,
   { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => !document.querySelector("#start").disabled, { timeout: 60000 });
-await page.selectOption("#voice", "local");
+await page.check('input[name="voice"][value="local"]');
 await page.selectOption("#from", "en");
 await page.selectOption("#to", "zh-Hans");
 await page.click("#start");
@@ -90,7 +90,7 @@ check("falling back to the model on this device", /opus-mt/.test(state.log));
     { waitUntil: "domcontentloaded" });
   await page2.waitForFunction(() => !document.querySelector("#start").disabled, { timeout: 60000 });
   // the free voice, plus a "key" of the sort a password manager supplies
-  await page2.selectOption("#voice", "local");
+  await page2.check('input[name="voice"][value="local"]');
   await page2.evaluate(() => {
     const k = document.querySelector("#key");
     k.value = "hunter2-a-saved-password";                  // not a key

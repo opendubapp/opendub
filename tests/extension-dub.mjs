@@ -77,11 +77,11 @@ await page.goto(`chrome-extension://${id}/dub.html?src=${encodeURIComponent(`${o
   { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => !document.querySelector("#start").disabled, { timeout: 60000 });
 
-const voices = await page.locator("#voice option").evaluateAll((os) => os.map((o) => ({ v: o.value, off: o.disabled })));
+const voices = await page.locator('input[name="voice"]').evaluateAll((rs) => rs.map((r) => ({ v: r.value, off: r.disabled })));
 const free = voices.find((v) => v.v === "local");
 check("the free voice is offered, so the app on this computer was found", free && !free.off, JSON.stringify(free));
 
-await page.selectOption("#voice", "local");
+await page.check('input[name="voice"][value="local"]');
 await page.selectOption("#to", "zh-Hans");
 await page.selectOption("#from", "en");
 await page.click("#start");
@@ -97,7 +97,7 @@ while (Date.now() - started < BUDGET) {
   await page.waitForTimeout(4000);
   const state = await page.evaluate(() => ({
     done: !document.querySelector("#done").hidden,
-    doing: document.querySelector("#stages li.doing")?.textContent || "",
+    doing: document.querySelector("#stages li.is-running")?.textContent || "",
     log: document.querySelector("#log")?.textContent || "",
   }));
   if (state.doing && state.doing !== last) { last = state.doing; console.log(`      … ${last} (${Math.round((Date.now() - started) / 1000)}s)`); }

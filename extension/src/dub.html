@@ -60,16 +60,39 @@
   </form>
 
   <section id="progress" class="panel" hidden>
-    <ol id="stages" class="stages"></ol>
-    <pre id="log"></pre>
+    <div class="run-head">
+      <div>
+        <p class="oa-eyebrow" id="run-eyebrow">Dubbing</p>
+        <h2 id="run-title">—</h2>
+      </div>
+      <span class="elapsed mono" id="elapsed">0:00</span>
+    </div>
+    <ol class="stages" id="stages"></ol>
+    <details class="log" open>
+      <summary>What it is doing</summary>
+      <pre id="log" class="mono"></pre>
+    </details>
   </section>
 
   <section id="done" class="panel" hidden>
-    <video id="player" controls playsinline></video>
-    <div class="row">
-      <a id="save" class="oa-btn oa-btn--primary oa-btn--md" download>Save the dubbed video</a>
-      <a id="subs" class="oa-btn oa-btn--md" download>Subtitles</a>
+    <div class="result-head">
+      <div>
+        <p class="oa-eyebrow" id="res-eyebrow">Dubbed</p>
+        <h2 id="res-title">—</h2>
+      </div>
+      <div class="result-actions">
+        <a class="oa-btn oa-btn--primary oa-btn--md" id="save" download>Save the video</a>
+        <a class="oa-btn oa-btn--secondary oa-btn--md" id="subs" download>Subtitles</a>
+      </div>
     </div>
+    <div class="players">
+      <div class="player">
+        <span class="oa-caption" id="dub-lang"></span>
+        <video id="player" controls playsinline></video>
+      </div>
+    </div>
+    <ol class="lines" id="lines"></ol>
+    <p class="oa-caption" id="lines-why"></p>
   </section>
 </main>
 <script type="module" src="dub.js"></script>
