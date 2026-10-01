@@ -69,13 +69,13 @@
         </div>
         <fieldset class="providers">
           <legend>Voice model</legend>
-          <label class="provider" id="bomni"><input type="radio" name="bprovider" value="local" />
+          <label class="provider" id="bomni"><input type="radio" name="bprovider" value="local" checked />
             <span class="provider-body"><span class="provider-head"><b>On your computer</b><span class="cost-badge cost-free" title="Runs on your computer. No key, no account, nothing uploaded.">Free</span></span>
             <span class="oa-caption">Open voice models running in the OpenDub app on your computer. Slower than the cloud.</span>
             <span class="omni-status" id="bomni-status" role="status">Uses the OpenDub app on your computer. <button type="button" id="bomni-connect">Connect to it</button></span>
             <span class="local-engine" id="bengine-wrap" hidden><select id="bengine" class="oa-input" aria-label="Voice engine on this computer"></select>
             <span class="oa-caption" id="bengine-note"></span></span></span></label>
-          <label class="provider"><input type="radio" name="bprovider" value="higgs" checked />
+          <label class="provider"><input type="radio" name="bprovider" value="higgs" />
             <span class="provider-body"><span class="provider-head"><b>Higgs Audio</b><span class="cost-badge cost-own-key" title="Calls Boson AI with your own key. You pay Boson directly.">Your own API key</span></span>
             <span class="oa-caption">Transcribes, translates, reads the tone and clones the voice.</span></span></label>
           <label class="provider"><input type="radio" name="bprovider" value="elevenlabs" />
