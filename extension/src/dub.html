@@ -1,54 +1,71 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="oa-dark">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>OpenDub</title>
+<link rel="stylesheet" href="vendor/tokens/styles.css" />
+<link rel="stylesheet" href="styles.css" />
 <link rel="stylesheet" href="dub.css" />
 <body>
-<main class="wrap">
-  <header>
-    <span class="mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>
+<header class="site-header">
+  <div class="wrap">
+    <span class="brand">
+      <span class="brand-tile" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>
+      </span>
+      <span class="brand-word"><span class="muted">Open</span>Dub<span class="dot">.</span></span>
     </span>
-    <b>OpenDub</b>
     <span class="spacer"></span>
-    <span id="source" class="muted"></span>
-  </header>
+    <span id="source" class="oa-caption"></span>
+  </div>
+</header>
 
-  <section class="card">
-    <div class="row">
-      <label>Spoken in <select id="from"></select></label>
-      <label>Dub into <select id="to"></select></label>
-    </div>
-    <div class="row">
-      <label>Voice
-        <select id="voice">
-          <option value="local">The app on this computer — free</option>
-          <option value="higgs">Higgs Audio — your own key</option>
-        </select>
-      </label>
-      <label id="keywrap" hidden>Key <input id="key" type="password" placeholder="bai-…" autocomplete="off" /></label>
-    </div>
-    <label class="check"><input type="checkbox" id="remove" /> Remove the original voice</label>
-    <p id="remove-note" class="muted">Otherwise it is only turned down, and you hear it between the dubbed lines. Keeps the music. Downloads a 172 MB separator once, and is slow without a GPU.</p>
-    <button id="start" class="primary" disabled>Fetching the video…</button>
-    <label id="pick" class="pick" hidden>Choose a video on this computer
+<main class="wrap page">
+  <form class="dub-card" autocomplete="off" onsubmit="return false">
+    <p class="oa-eyebrow">Dub this video</p>
+
+    <label id="pick" class="mini-drop" for="pickfile" hidden>
       <input id="pickfile" type="file" accept="video/*" hidden />
+      <span class="mini-drop-title">Choose a video, or drop it here</span>
+      <span class="oa-caption">It never leaves this computer.</span>
     </label>
-    <p id="note" class="muted"></p>
-    <p class="muted">The first dub downloads the speech model once, about 240 MB. Listening then takes roughly as long as the video, or longer on a machine without a GPU. Each step says what it is doing.</p>
-  </section>
 
-  <section id="progress" class="card" hidden>
-    <ol id="stages"></ol>
+    <div class="dub-langs">
+      <div class="field"><label for="from">Spoken in</label><select id="from" class="oa-input"></select></div>
+      <div class="field"><label for="to">Dub into</label><select id="to" class="oa-input"></select></div>
+    </div>
+
+    <div class="field">
+      <label for="voice">Voice model</label>
+      <select id="voice" class="oa-input">
+        <option value="local">The app on this computer — free</option>
+        <option value="higgs">Higgs Audio — your own key</option>
+      </select>
+    </div>
+
+    <div class="field" id="keywrap" hidden>
+      <label for="key">Higgs Audio key</label>
+      <input id="key" class="oa-input" type="text" spellcheck="false" placeholder="bai-…" autocomplete="off" data-1p-ignore data-lpignore="true" />
+    </div>
+
+    <label class="check"><input type="checkbox" id="remove" /> <span>Remove the original voice on this device</span></label>
+    <p class="oa-caption">Keeps the music and swaps only the speech. Downloads a 172 MB separator once, and is slow without a GPU. Otherwise the original is only turned down, and you hear it between the dubbed lines.</p>
+
+    <button id="start" class="oa-btn oa-btn--primary oa-btn--md" disabled>Fetching the video…</button>
+    <p id="note" class="oa-caption"></p>
+    <p class="oa-caption">The first dub downloads the speech model once, about 240 MB. Listening then takes roughly as long as the video, longer without a GPU. Each step says what it is doing.</p>
+  </form>
+
+  <section id="progress" class="panel" hidden>
+    <ol id="stages" class="stages"></ol>
     <pre id="log"></pre>
   </section>
 
-  <section id="done" class="card" hidden>
+  <section id="done" class="panel" hidden>
     <video id="player" controls playsinline></video>
     <div class="row">
-      <a id="save" class="primary" download>Save the dubbed video</a>
-      <a id="subs" class="secondary" download>Subtitles</a>
+      <a id="save" class="oa-btn oa-btn--primary oa-btn--md" download>Save the dubbed video</a>
+      <a id="subs" class="oa-btn oa-btn--md" download>Subtitles</a>
     </div>
   </section>
 </main>

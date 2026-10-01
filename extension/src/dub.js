@@ -37,12 +37,23 @@ let file = null;
   // never needed the page anyway.
   if (!src) {
     $("#pick").hidden = false;
+    $("#start").textContent = "Choose a video first";
     $("#note").textContent = "Nothing is uploaded: the video is read here, on this computer.";
+    const drop = $("#pick");
+    ["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("is-over"); }));
+    ["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("is-over"); }));
+    drop.addEventListener("drop", (ev) => {
+      const f = ev.dataTransfer?.files?.[0];
+      if (f) { $("#pickfile").files = ev.dataTransfer.files; $("#pickfile").dispatchEvent(new Event("change")); }
+    });
     $("#pickfile").addEventListener("change", async () => {
       const chosen = $("#pickfile").files[0];
       if (!chosen) return;
       file = chosen;
-      $("#pick").textContent = chosen.name;
+      // The label holds the file input: writing over its text would remove
+      // the input and there would be no way to choose a different video.
+      $("#pick").querySelector(".mini-drop-title").textContent = chosen.name;
+      $("#pick").classList.add("has-file");
       $("#note").textContent = `${(chosen.size / 1048576).toFixed(1)} MB. It stays on this computer.`;
       $("#start").disabled = false;
       $("#start").textContent = "Dub it";
