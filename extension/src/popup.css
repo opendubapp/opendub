@@ -11,3 +11,5 @@ header { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
 .item.cant button { background: var(--line); color: var(--muted); cursor: not-allowed; }
 .foot { margin: 12px 0 0; padding-top: 9px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }
 a { color: var(--accent); }
+.own { display: block; width: 100%; margin-top: 10px; font: inherit; font-weight: 600;
+  padding: 9px 12px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; cursor: pointer; }

@@ -37,6 +37,13 @@ function render(videos) {
   }));
 }
 
+// Sites that build their video in the page — YouTube and most of the big
+// ones — have no file to take, and until now the popup said so and stopped
+// there. Dubbing a video of your own never depended on the page at all.
+document.getElementById("own").addEventListener("click", () => {
+  chrome.runtime.sendMessage({ type: "open-dub" }, () => window.close());
+});
+
 chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
   if (!tab?.id) return;
   chrome.tabs.sendMessage(tab.id, { type: "list" }, (res) => {

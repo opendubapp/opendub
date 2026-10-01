@@ -23,3 +23,6 @@ label.check { flex-direction: row; align-items: center; gap: 7px; color: var(--i
 label.check input { min-width: 0; }
 #remove-note { margin: 0 0 12px; }
 .doing-note { color: var(--muted); font-weight: 400; }
+.pick { display: inline-block; font: inherit; font-weight: 600; padding: 8px 16px; border: 1px dashed var(--line);
+  border-radius: 10px; color: var(--ink); cursor: pointer; margin-bottom: 10px; }
+.pick:hover { border-color: var(--accent); color: var(--accent); }
