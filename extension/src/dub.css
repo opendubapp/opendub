@@ -1,28 +1,34 @@
-:root { color-scheme: light dark; --ink: #10161a; --muted: #62727a; --line: #dde3e6; --accent: #00a37a; --paper: #f4f6f7; --card: #fff; }
-@media (prefers-color-scheme: dark) { :root { --ink: #eaf1f3; --muted: #93a4ab; --line: #26343a; --paper: #0d1316; --card: #141c20; } }
-body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.6 -apple-system, "Segoe UI", system-ui, sans-serif; }
-.wrap { max-width: 720px; margin: 0 auto; padding: 22px 20px 60px; }
-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.mark { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; background: var(--ink); color: var(--paper); }
+/* What the site's stylesheet does not cover: this page is one card on its
+   own rather than a landing page, and it has a log and a player the site
+   keeps elsewhere. Every value is a token, so it tracks the site's design. */
+body { background: var(--bg-page); color: var(--text-body); margin: 0; }
+
+.site-header { border-bottom: 1px solid var(--border-hairline); background: var(--surface-card); }
+.site-header .wrap { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-5); }
 .spacer { flex: 1; }
-.muted { color: var(--muted); font-size: 12.5px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
-.row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: end; }
-label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
-select, input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--card); color: var(--ink); min-width: 170px; }
-button.primary, a.primary { font: inherit; font-weight: 600; padding: 8px 16px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; cursor: pointer; text-decoration: none; display: inline-block; }
-button.primary:disabled { background: var(--line); color: var(--muted); cursor: default; }
-a.secondary { font: inherit; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; }
-ol { margin: 0 0 10px; padding-left: 20px; }
-ol li { color: var(--muted); }
-ol li.doing { color: var(--ink); font-weight: 600; }
-ol li.done { color: var(--accent); }
-pre { margin: 0; max-height: 180px; overflow: auto; font-size: 11.5px; color: var(--muted); white-space: pre-wrap; }
-video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 12px; }
-label.check { flex-direction: row; align-items: center; gap: 7px; color: var(--ink); margin-bottom: 4px; }
-label.check input { min-width: 0; }
-#remove-note { margin: 0 0 12px; }
-.doing-note { color: var(--muted); font-weight: 400; }
-.pick { display: inline-block; font: inherit; font-weight: 600; padding: 8px 16px; border: 1px dashed var(--line);
-  border-radius: 10px; color: var(--ink); cursor: pointer; margin-bottom: 10px; }
-.pick:hover { border-color: var(--accent); color: var(--accent); }
+
+.wrap { max-width: 720px; margin: 0 auto; }
+.page { padding: var(--space-6) var(--space-5) var(--space-10); display: flex; flex-direction: column; gap: var(--space-5); }
+
+/* The card is the site's; it is shown here rather than revealed by script. */
+.dub-card { display: flex; flex-direction: column; gap: var(--space-4); }
+.dub-langs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.field label { font: var(--type-caption); color: var(--text-muted); }
+.check { display: flex; align-items: center; gap: var(--space-2); font: var(--type-ui); color: var(--text-body); }
+
+.panel { padding: var(--space-5); border: 1px solid var(--border-hairline); border-radius: var(--radius-xl);
+  background: var(--surface-card); }
+.row { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
+
+.stages { margin: 0 0 var(--space-3); padding-left: var(--space-5); }
+.stages li { color: var(--text-muted); font: var(--type-ui); }
+.stages li.doing { color: var(--text-strong); font-weight: var(--weight-medium); }
+.stages li.done { color: var(--accent); }
+.doing-note { color: var(--text-muted); font-weight: var(--weight-regular); }
+
+pre { margin: 0; max-height: 190px; overflow: auto; white-space: pre-wrap;
+  font: var(--type-code, 11.5px/1.6 var(--font-mono, ui-monospace, monospace)); color: var(--text-muted); }
+video { width: 100%; border-radius: var(--radius-lg); background: #000; margin-bottom: var(--space-3); }
+
+@media (max-width: 560px) { .dub-langs { grid-template-columns: 1fr; } }

@@ -22,6 +22,12 @@ for target in chrome firefox; do
   mkdir -p "$out"
   cp src/*.js src/*.html src/*.css "$out/"
   cp -R icons "$out/"
+  # The site's design tokens and stylesheet, so the dubbing page looks like
+  # the product rather than like a settings dialog. Fonts come with them, so
+  # nothing is fetched from the network — an extension page may not anyway.
+  mkdir -p "$out/vendor"
+  cp -R ../web/vendor/tokens "$out/vendor/"
+  cp ../web/styles.css "$out/"
   cp -R "$BUNDLE" "$out/browser"
   # Every runtime file the site ships, with none left out. Dropping the
   # asyncify build to save 26 MB broke WebGPU at the third step of a dub —
