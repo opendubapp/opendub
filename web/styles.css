@@ -402,3 +402,8 @@ section { scroll-margin-top: 5.5rem; }
   font: inherit; text-transform: none; letter-spacing: 0; padding: 0; cursor: pointer;
   background: none; border: 0; color: var(--text-link); text-decoration: underline;
 }
+
+/* The key box the app shows when it has none: present, not insistent. */
+.key-offer { margin-top: var(--space-6, 24px); }
+.key-offer .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.key-offer .oa-input { flex: 1 1 240px; min-width: 0; }
