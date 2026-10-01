@@ -181,12 +181,12 @@ const askContentScript = async (page) => {
     button: document.querySelector("#start").textContent.trim(),
     note: document.querySelector("#note").textContent.trim(),
     languages: document.querySelectorAll("#to option").length,
-    voices: [...document.querySelectorAll("#voice option")].map((o) => o.textContent),
+    voices: [...document.querySelectorAll('input[name="voice"]')].map((r) => r.closest(".provider")?.textContent.trim().split("\n")[0] || r.value),
   }));
   check("the dubbing page fetches the video it was given", state.button === "Dub it", `${state.button} — ${state.note.slice(0, 50)}`);
   check("it says the video stays on this machine", /stays on this computer/i.test(state.note), state.note.slice(0, 60));
   check("it offers every language the site does", state.languages >= 17, `${state.languages} languages`);
-  check("and says whether the free voice is there", state.voices.some((v) => /not running|free/.test(v)), state.voices.join(" | "));
+  check("and says whether the free voice is there", state.voices.some((v) => /Free|computer/i.test(v)), state.voices.join(" | "));
   check("no page errors", errors.length === 0, errors.join(" | "));
   await page.close();
 }

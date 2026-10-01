@@ -24,9 +24,12 @@ $("#from").prepend(new Option("Auto-detect", "auto"));
 $("#from").value = "auto";
 $("#to").value = "zh-Hans";
 
-$("#voice").addEventListener("change", () => {
-  $("#keywrap").hidden = $("#voice").value !== "higgs";
-});
+// The voice is chosen the way the site chooses it: cards, not a dropdown.
+const voice = () => document.querySelector('input[name="voice"]:checked')?.value || "local";
+const freeRadio = () => document.querySelector('input[name="voice"][value="local"]');
+for (const r of document.querySelectorAll('input[name="voice"]')) {
+  r.addEventListener("change", () => { $("#keywrap").hidden = voice() !== "higgs"; });
+}
 
 // --- the file ---------------------------------------------------------------
 
@@ -84,14 +87,16 @@ async function offerVoices() {
     return;
   }
   const status = await localAppStatus();
-  const free = $("#voice").querySelector('option[value="local"]');
-  if (!status) {
-    free.textContent = "The app on this computer — not running";
-    free.disabled = true;
-    $("#voice").value = "higgs";
-    $("#keywrap").hidden = false;
-    $("#note").textContent += " Start OpenDub on this computer for the free voice, or use a key.";
+  const free = freeRadio();
+  if (status) {
+    $("#omni-status").textContent = "Connected to the OpenDub app on this computer.";
+    return;
   }
+  free.disabled = true;
+  $("#omni").classList.add("is-unavailable");
+  $("#omni-status").textContent = "Not running. Start OpenDub on this computer, or use a key.";
+  document.querySelector('input[name="voice"][value="higgs"]').checked = true;
+  $("#keywrap").hidden = false;
 }
 
 // --- running it -------------------------------------------------------------
@@ -125,15 +130,15 @@ $("#start").addEventListener("click", async () => {
   // the app a moment later and the page still believes it is not there — so
   // someone using the free voice presses Dub and is told their key was
   // refused, for a key they never meant to use. Look again here.
-  const free = $("#voice").querySelector('option[value="local"]');
+  const free = freeRadio();
   if (free.disabled && await localAppStatus()) {
     free.disabled = false;
-    free.textContent = "The app on this computer — free";
-    $("#voice").value = "local";
+    free.checked = true;
+    $("#omni").classList.remove("is-unavailable");
+    $("#omni-status").textContent = "Connected to the OpenDub app on this computer.";
     $("#keywrap").hidden = true;
-    $("#note").textContent = "Found the app on this computer; using the free voice.";
   }
-  const provider = $("#voice").value;
+  const provider = voice();
   // An empty box sends an empty key, the server answers 401, and the page says
   // the key was refused — which reads as a broken key rather than a missing one.
   if (provider === "higgs" && !$("#key").value.trim()) {
