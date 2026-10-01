@@ -218,12 +218,70 @@ final class Installer: ObservableObject {
         } catch {
             await MainActor.run { note("Update skipped: \(error.localizedDescription)") }
         }
+        await ensurePipeline()
+    }
+
+    /// The pipeline the page runs in itself, which is what makes this free.
+    ///
+    /// It lives in its own archive because the program above is fetched on
+    /// every launch and this is twenty-one megabytes. The checksum beside it
+    /// is a few bytes, so asking "is mine the one you are serving?" costs
+    /// nothing and the answer is almost always yes.
+    ///
+    /// Without it the page asks its own origin for the pipeline, gets a 404,
+    /// and the only route left is the one that needs a key.
+    private func ensurePipeline() async {
+        let marker = Paths.app.appending(path: "web/browser/.sha256")
+        let have = (try? String(contentsOf: marker, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let want = try? await text("\(Paths.site)/opendub-browser.sha256"),
+              !want.isEmpty else { return }           // offline: keep what we have
+        if have == want, FileManager.default.fileExists(atPath: Paths.app.appending(path: "web/browser/opendub-browser.js").path) {
+            return
+        }
+        await set("Fetching the dubbing pipeline…", "21 MB, once.", fraction: 0)
+        let tgz = Paths.root.appending(path: "browser.tar.gz")
+        do {
+            try await download(URL(string: "\(Paths.site)/opendub-browser.tar.gz")!, to: tgz) { [weak self] f in
+                Task { @MainActor in self?.fraction = f }
+            }
+            let web = Paths.app.appending(path: "web")
+            try? FileManager.default.createDirectory(at: web, withIntermediateDirectories: true)
+            _ = try run(URL(fileURLWithPath: "/usr/bin/tar"), ["-xzf", tgz.path, "-C", web.path], onLine: { _ in })
+            try? FileManager.default.removeItem(at: tgz)
+            try? want.write(to: marker, atomically: true, encoding: .utf8)
+        } catch {
+            await MainActor.run { note("The pipeline could not be fetched: \(error.localizedDescription)") }
+        }
+    }
+
+    private func text(_ url: String) async throws -> String {
+        var request = URLRequest(url: URL(string: url)!)
+        request.timeoutInterval = 10
+        let (data, _) = try await URLSession.shared.data(for: request)
+        return String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // ---------------------------------------------------------------- the server
 
     func startServer() async {
         await set("Starting…", "", fraction: nil)
+        // A server already on the port is not necessarily the one just
+        // installed. For three days a process from an older install held it:
+        // every start failed to bind, the health check saw the old one
+        // answering and reported success, and every fix shipped in that time
+        // sat on disk unread. Ask whoever is there to stand down first — only
+        // this program answers that — and wait for the port to go quiet.
+        if await healthy() {
+            note("A copy of OpenDub was already running; replacing it.")
+            var request = URLRequest(url: URL(string: "http://127.0.0.1:\(Paths.port)/api/local/quit")!)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 3
+            _ = try? await URLSession.shared.data(for: request)
+            for _ in 0..<40 {
+                try? await Task.sleep(for: .milliseconds(250))
+                if await !healthy() { break }
+            }
+        }
         let task = Process()
         task.executableURL = Paths.venv.appending(path: "bin/uvicorn")
         task.arguments = ["opendub.server:app", "--host", "127.0.0.1", "--port", String(Paths.port)]
@@ -382,7 +440,18 @@ struct DubUI: NSViewRepresentable {
         view.uiDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = false
         view.setValue(false, forKey: "drawsBackground")
-        view.load(URLRequest(url: url))
+        // The app updates itself on launch, and a web view keeps its own
+        // cache across restarts — so the window can come up showing the
+        // interface from before the update, complete with the instructions
+        // the update was meant to remove. The files come from this machine
+        // over loopback, so there is nothing to save by holding them.
+        let store = WKWebsiteDataStore.default()
+        let caches: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache]
+        store.removeData(ofTypes: caches, modifiedSince: .distantPast) {
+            var request = URLRequest(url: url)
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            view.load(request)
+        }
         return view
     }
 

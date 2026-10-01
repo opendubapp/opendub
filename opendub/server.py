@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import queue
@@ -223,8 +224,41 @@ def get_file(job_id: str, name: str, download: int = 0):
 def local_health():
     from . import engines
     cat = engines.catalog()
-    return {"ok": True, "app": "opendub", "engines": cat,
+    return {"ok": True, "app": "opendub", "engines": cat, "pid": os.getpid(),
+            # What this process is running, which is not always what is on
+            # disk: Python reads its code once. A launcher that finds a server
+            # already answering has no other way to tell whether it is the one
+            # it just installed.
+            "build": _build_id(),
             "omnivoice": any(e["id"] == "omnivoice" and e["ready"] for e in cat)}
+
+
+def _build_id() -> str:
+    """A fingerprint of the code this process actually loaded."""
+    h = hashlib.sha256()
+    for name in sorted(("server.py", "pipeline.py", "dub.py", "translate.py", "asr.py")):
+        f = Path(__file__).parent / name
+        if f.exists():
+            h.update(f.read_bytes())
+    return h.hexdigest()[:12]
+
+
+@app.post("/api/local/quit")
+def local_quit():
+    """Stop, so a newer copy can take the port.
+
+    The launcher starts a server and, if one is already answering, assumes it
+    is the one it just installed. That was wrong for three days: a process
+    from an older install held the port, every new start failed to bind, and
+    every fix shipped in that time sat on disk unread while the launcher
+    reported success. Rather than guess, the launcher now asks whoever is
+    there to stand down, and only this program answers.
+    """
+    def bye():
+        time.sleep(0.2)
+        os._exit(0)
+    threading.Thread(target=bye, daemon=True).start()
+    return {"ok": True, "stopping": True}
 
 
 @app.post("/api/local/key")
