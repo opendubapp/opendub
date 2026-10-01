@@ -128,6 +128,10 @@ func setState(p phase, status, detail string, fraction float64) {
 	state.Lock()
 	state.phase = p
 	state.status = status
+	// An empty detail keeps whatever was there, so a long explanation stays
+	// up across the steps that follow it. The cost is that "" cannot clear
+	// one: a state that needs a blank line has to say something. "Running"
+	// passed "" once and kept "Still starting, 113 seconds in" underneath it.
 	if detail != "" {
 		state.detail = detail
 	}
@@ -688,7 +692,8 @@ func startServer() {
 		case <-time.After(500 * time.Millisecond):
 		}
 		if healthy() {
-			setState(phaseRunning, "OpenDub is running on this PC.", "", -1)
+			setState(phaseRunning, "OpenDub is running on this PC.",
+				"Dub in the window that just opened. Keep this one open — closing it stops OpenDub.", -1)
 			logLine("health: answering on 127.0.0.1:" + fmt.Sprint(port))
 			openLocalUI()
 			return
@@ -1185,12 +1190,16 @@ func openLocalUI() {
 	for _, exe := range []string{
 		os.Getenv("ProgramFiles(x86)") + `\Microsoft\Edge\Application\msedge.exe`,
 		os.Getenv("ProgramFiles") + `\Microsoft\Edge\Application\msedge.exe`,
+		os.Getenv("LOCALAPPDATA") + `\Microsoft\Edge\Application\msedge.exe`,
 	} {
 		if _, err := os.Stat(exe); err != nil {
 			continue
 		}
+		// Not hidden(): that is for the server, which has a console nobody
+		// wants. Starting a browser with HideWindow and CREATE_NO_WINDOW
+		// starts it with no window — the button appears to do nothing, which
+		// is exactly how this was reported.
 		cmd := exec.Command(exe, "--app="+local, "--window-size=1100,780")
-		cmd.SysProcAttr = hidden()
 		if err := cmd.Start(); err == nil {
 			logLine("opened the interface in its own window")
 			return
