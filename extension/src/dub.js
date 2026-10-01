@@ -248,24 +248,95 @@ $("#start").addEventListener("click", async () => {
     return;
   }
   const R = done.result;
+  const D = R.duration || 1;
   $("#done").hidden = false;
   $("#res-title").textContent = done.filename || name;
   $("#res-eyebrow").textContent = `Dubbed into ${R.target_name || R.target}`;
-  $("#dub-lang").textContent = `${R.target_endonym || R.target_name || R.target} — from ${R.source_name || "the original"}`;
+  $("#src-lang").textContent = R.source_name || "Original";
+  $("#dub-lang").textContent = R.target_endonym || R.target_name || R.target;
   $("#player").src = R.files.video;
+  $("#v-src").src = URL.createObjectURL(file);          // the video as it came in
   $("#save").href = R.files.video;
   $("#save").download = `${name}.${R.target}.mp4`;
   $("#subs").href = R.files.subtitles;
   $("#subs").download = `${name}.${R.target}.srt`;
-  // The lines, as the site and the app show them. Read-only here for the same
-  // reason they are read-only there for a dub made in a page: changing one
-  // means making the dub again, and there is no job on a server to re-make.
-  $("#lines").replaceChildren(...(R.lines || []).map((l) => {
+
+  // Both at once, the original muted, so the dub is heard against the picture
+  // it was made for.
+  const vs = $("#v-src"), vd = $("#player");
+  const seek = (t) => () => { vd.currentTime = t; vs.currentTime = t; };
+  $("#play-both").addEventListener("click", () => {
+    vs.muted = true;
+    vs.currentTime = vd.currentTime;
+    Promise.all([vs.play(), vd.play()]).catch(() => {});
+  });
+  $("#stop-both").addEventListener("click", () => { vd.pause(); vs.pause(); });
+  vd.addEventListener("pause", () => { if (!vs.paused) vs.pause(); });
+  vd.addEventListener("seeked", () => { if (Math.abs(vs.currentTime - vd.currentTime) > 0.25) vs.currentTime = vd.currentTime; });
+  vd.addEventListener("timeupdate", () => {
+    if (!vs.paused && Math.abs(vs.currentTime - vd.currentTime) > 0.35) vs.currentTime = vd.currentTime;
+    const head = document.getElementById("tl-head");
+    if (head) head.style.left = `${(100 * vd.currentTime / D).toFixed(3)}%`;
+  });
+
+  // Where every line sits: the speaker's sentence above, the dub below, so a
+  // line that drifted or had to be hurried is visible rather than described.
+  const pct = (t) => `${(100 * t / D).toFixed(3)}%`;
+  const box = (a, b, cls, title, onClick) => {
+    const n = document.createElement("span");
+    if (cls) n.className = cls;
+    n.title = title;
+    n.style.left = pct(a);
+    n.style.width = pct(Math.max(0.05, b - a));
+    if (onClick) n.addEventListener("click", onClick);
+    return n;
+  };
+  const row = (cls, kids) => {
+    const d = document.createElement("div");
+    d.className = `tl-row ${cls}`;
+    d.append(...kids);
+    return d;
+  };
+  const lines = R.lines || [];
+  const head = document.createElement("i");
+  head.className = "tl-head";
+  head.id = "tl-head";
+  $("#timeline").replaceChildren(
+    row("tl-src", lines.map((l) => box(l.src_start, l.src_end, "", l.source, seek(l.src_start)))),
+    row("tl-dub", lines.map((l) => box(l.start, l.end,
+      Math.abs(l.tempo - 1) > 0.1 ? "fast" : "",
+      `${l.text}${Math.abs(l.tempo - 1) > 0.01 ? ` (${l.tempo}×)` : ""}`, seek(l.start)))),
+    head);
+
+  const stat = (big, small) => {
+    const d = document.createElement("div");
+    d.className = "stat";
+    const b = document.createElement("b");
+    b.textContent = big;
+    const s2 = document.createElement("span");
+    s2.textContent = small;
+    d.append(b, s2);
+    return d;
+  };
+  const drift = lines.length
+    ? lines.reduce((a, l) => a + Math.abs((l.end - l.start) - (l.src_end - l.src_start)), 0) / lines.length : 0;
+  const stretched = lines.filter((l) => Math.abs(l.tempo - 1) > 0.1);
+  const total = done.log.length ? done.log[done.log.length - 1].t : 0;
+  $("#stats").replaceChildren(
+    stat(String(lines.length), "lines dubbed"),
+    stat(`±${drift.toFixed(2)}s`, "average gap between the dub and the speaker finishing a line"),
+    stat(clock(total), `to dub ${clock(R.duration || 0)} of video${stretched.length ? ` · ${stretched.length} stretched` : ""}`),
+  );
+
+  // The lines, read-only: changing one means dubbing it again, and a dub made
+  // in a page has no job on a server to re-make.
+  $("#lines").replaceChildren(...lines.map((l) => {
     const li = document.createElement("li");
     li.className = "line";
     const when = document.createElement("span");
     when.className = "line-time mono";
     when.textContent = clock(l.start);
+    when.addEventListener("click", seek(l.start));
     const text = document.createElement("div");
     text.className = "line-text";
     text.lang = R.target;
@@ -278,8 +349,6 @@ $("#start").addEventListener("click", async () => {
     li.append(when, body);
     return li;
   }));
-  $("#lines-why").textContent = (R.lines || []).length
-    ? "Editing a line and dubbing it again needs the pipeline in the OpenDub app, which uses a Higgs key."
-    : "";
+  $("#lines-why").textContent = "Editing a line and dubbing it again needs the pipeline in the OpenDub app, which uses a Higgs key.";
   $("#done").scrollIntoView({ behavior: "smooth" });
 });

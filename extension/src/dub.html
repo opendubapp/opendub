@@ -77,22 +77,48 @@
   <section id="done" class="panel" hidden>
     <div class="result-head">
       <div>
-        <p class="oa-eyebrow" id="res-eyebrow">Dubbed</p>
+        <p class="oa-eyebrow" id="res-eyebrow">Done</p>
         <h2 id="res-title">—</h2>
       </div>
       <div class="result-actions">
-        <a class="oa-btn oa-btn--primary oa-btn--md" id="save" download>Save the video</a>
+        <a class="oa-btn oa-btn--primary oa-btn--md" id="save" download>Download video</a>
         <a class="oa-btn oa-btn--secondary oa-btn--md" id="subs" download>Subtitles</a>
       </div>
     </div>
-    <div class="players">
-      <div class="player">
-        <span class="oa-caption" id="dub-lang"></span>
-        <video id="player" controls playsinline></video>
+
+    <div class="players" id="players">
+      <figure>
+        <figcaption><span>Original</span><span class="oa-caption" id="src-lang"></span></figcaption>
+        <video id="v-src" controls playsinline preload="metadata" muted></video>
+      </figure>
+      <figure>
+        <figcaption><span>Dubbed</span><span class="oa-caption" id="dub-lang"></span></figcaption>
+        <video id="player" controls playsinline preload="metadata"></video>
+      </figure>
+    </div>
+    <div class="compare">
+      <button type="button" class="oa-btn oa-btn--secondary oa-btn--sm" id="play-both">Play side by side</button>
+      <button type="button" class="oa-btn oa-btn--secondary oa-btn--sm" id="stop-both">Stop both</button>
+      <span class="oa-caption">The original plays muted, so you hear the dub against the picture it was made for.</span>
+    </div>
+
+    <div class="timeline-wrap">
+      <div class="timeline" id="timeline" aria-label="Timeline"></div>
+      <div class="legend oa-caption">
+        <span><i class="sw sw-src"></i>Original sentence</span>
+        <span><i class="sw sw-dub"></i>Dubbed line</span>
+        <span><i class="sw sw-fast"></i>Stretched more than 10%</span>
       </div>
+      <p class="oa-caption tl-help" id="tl-help">Click a block to jump both videos to it.</p>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="lines-head">
+      <h3>Lines</h3>
+      <p class="oa-caption" id="lines-why"></p>
     </div>
     <ol class="lines" id="lines"></ol>
-    <p class="oa-caption" id="lines-why"></p>
   </section>
 </main>
 <script type="module" src="dub.js"></script>
