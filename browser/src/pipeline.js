@@ -120,6 +120,24 @@ async function assertTranslatable(source, target, chatter, isVoiceKey, prepared,
   throw new Error(`Chrome has not downloaded its ${name} \u2192 ${target.name} pack yet, and it will only start that from a click. Set \u201cSpoken in\u201d to ${name} and press Dub again \u2014 that click can start it \u2014 or add a Higgs key.`);
 }
 
+/**
+ * Which voice a page is asking for.
+ *
+ * "omnivoice" is what the free voice was called before it could be any of
+ * several engines, and the page asking may be older than this bundle: the
+ * site and this pipeline are deployed separately, and one went out without
+ * the other. Anything unrecognised must not quietly become the paid
+ * provider — falling through is how choosing the free voice came back as
+ * "The key was refused (401). The voice needs it."
+ */
+export function chooseProvider(opts) {
+  if (opts.provider === "elevenlabs") return elevenlabs(opts.key);
+  if (opts.provider === "local" || opts.provider === "omnivoice") {
+    return local(opts.engine, !!opts.exactDuration, opts.engineName);
+  }
+  return higgs(opts.key);
+}
+
 export async function dub(file, opts, emit) {
   const created = Date.now() / 1000;
   const job = { id: "browser", filename: file.name, status: "running", stage: "", stage_progress: 0, stages: {}, log: [], created, options: opts, result: null };
@@ -133,8 +151,7 @@ export async function dub(file, opts, emit) {
   const end = (k) => { job.stages[k] = { status: "done", seconds: +((performance.now() - t0) / 1000).toFixed(1) }; emit(job); };
 
   const target = core.language(opts.target);
-  const provider = opts.provider === "elevenlabs" ? elevenlabs(opts.key)
-    : opts.provider === "local" ? local(opts.engine, !!opts.exactDuration, opts.engineName) : higgs(opts.key);
+  const provider = chooseProvider(opts);
   let chatter = provider.hasChat ? provider : opts.translateKey ? higgs(opts.translateKey) : null;
   let voice = null;
   try {
