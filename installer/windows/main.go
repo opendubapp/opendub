@@ -617,6 +617,24 @@ func startServer() {
 	setState(phaseWorking, "Starting…", "", -1)
 	logDiagnostics()
 
+	// A server already on the port is not necessarily the one just installed.
+	// On a Mac a process from an older install held it for three days: every
+	// start failed to bind, the health check saw the old one answering and
+	// reported success, and every fix shipped in that time sat on disk unread.
+	// Ask whoever is there to stand down — only this program answers that —
+	// and wait for the port to go quiet.
+	if healthy() {
+		logLine("a copy of OpenDub was already running; asking it to stop")
+		setDetail("A copy of OpenDub was already running; replacing it.")
+		req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/local/quit", port), nil)
+		if resp, err := web.Do(req); err == nil {
+			resp.Body.Close()
+		}
+		for i := 0; i < 40 && healthy(); i++ {
+			time.Sleep(250 * time.Millisecond)
+		}
+	}
+
 	// The console script is the normal way in. If it is missing — a venv moved,
 	// a half-finished install — the module is still there, so try that rather
 	// than failing with nothing to say.
@@ -670,10 +688,9 @@ func startServer() {
 		case <-time.After(500 * time.Millisecond):
 		}
 		if healthy() {
-			setState(phaseRunning, "OpenDub is running on this PC.",
-				"Go to opendub.app, choose the free voice, and press “Look for the app on this computer”.", -1)
+			setState(phaseRunning, "OpenDub is running on this PC.", "", -1)
 			logLine("health: answering on 127.0.0.1:" + fmt.Sprint(port))
-			openSite()
+			openLocalUI()
 			return
 		}
 		waited := int(time.Since(started).Seconds())
@@ -1107,7 +1124,7 @@ func refresh() {
 		setText(hButton, "Install OpenDub")
 		show(hButton, true)
 	case phaseRunning:
-		setText(hButton, "Open opendub.app")
+		setText(hButton, "Open OpenDub")
 		show(hButton, true)
 	case phaseFailed:
 		setText(hButton, "Try again")
@@ -1150,8 +1167,41 @@ func setProgress(fraction float64) {
 	procSendMessageW.Call(uintptr(hProgress), pbmSetPos, uintptr(int32(fraction*1000)), 0)
 }
 
-func openSite() {
-	verb, url := utf16("open"), utf16(site)
+// openLocalUI shows the dubbing interface this PC is serving, in a window of
+// its own rather than a browser tab.
+//
+// Edge is on every Windows 10 and 11, and --app opens a chromeless window: no
+// address bar, no tabs, its own taskbar button. The page is then same origin
+// with the server, so none of the browser's rules about reaching your own
+// machine apply — no permission to grant, nothing cached from the website.
+//
+// A WebView2 control inside this window would be tidier still, and is the
+// next step; this is written on a Mac and cannot be run here, so it uses the
+// browser that is certainly present rather than COM that certainly is not
+// tested. If Edge is not where it should be, the default browser opens the
+// same local address, which works just as well with a tab around it.
+func openLocalUI() {
+	local := fmt.Sprintf("http://127.0.0.1:%d/", port)
+	for _, exe := range []string{
+		os.Getenv("ProgramFiles(x86)") + `\Microsoft\Edge\Application\msedge.exe`,
+		os.Getenv("ProgramFiles") + `\Microsoft\Edge\Application\msedge.exe`,
+	} {
+		if _, err := os.Stat(exe); err != nil {
+			continue
+		}
+		cmd := exec.Command(exe, "--app="+local, "--window-size=1100,780")
+		cmd.SysProcAttr = hidden()
+		if err := cmd.Start(); err == nil {
+			logLine("opened the interface in its own window")
+			return
+		}
+	}
+	logLine("Edge was not where it should be; opening the default browser instead")
+	openURL(local)
+}
+
+func openURL(target string) {
+	verb, url := utf16("open"), utf16(target)
 	procShellExecuteW.Call(0,
 		uintptr(unsafe.Pointer(verb)), uintptr(unsafe.Pointer(url)),
 		0, 0, swShowNormal)
@@ -1203,7 +1253,7 @@ func onButton() {
 	case phaseNeedsInstall:
 		startInstall()
 	case phaseRunning:
-		openSite()
+		openLocalUI()
 	case phaseFailed:
 		// Try again picks up wherever it stopped: uv and the code are already
 		// on disk if they got that far, so a retry is usually the last step only.
