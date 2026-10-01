@@ -147,16 +147,32 @@ export function local(engine = "omnivoice", exactDuration = engine === "omnivoic
     transcribe: null,
     async prepareVoice(refWav, refText) { return { refWav, refText }; },
     async releaseVoice() {},
-    async speak(text, voice, { duration, lang } = {}) {
+    async speak(text, voice, { duration, lang, onWait } = {}) {
       const f = new FormData();
       f.append("engine", engine);
       f.append("ref_audio", voice.refWav, "ref.wav");
       f.append("ref_text", voice.refText || "");
       if (lang) f.append("language", lang);
       f.append("lines", JSON.stringify([{ text, duration: duration || null }]));
+      // The app can go away in the middle of a dub — closing its window stops
+      // the voice with it — and by then there are minutes of separating,
+      // listening and translating behind us. Losing all of that because a
+      // window was closed is the wrong answer: wait for it to come back, say
+      // so while waiting, and carry on where it stopped. Two minutes is long
+      // enough to notice and reopen it.
       let r;
-      try { r = await fetch(`${LOCAL_APP}/api/local/speak`, { method: "POST", body: f }); }
-      catch { throw new Error("Lost the OpenDub app on this computer. Is it still running (./run.sh)?"); }
+      for (let waited = 0; ; waited += 2) {
+        try {
+          r = await fetch(`${LOCAL_APP}/api/local/speak`, { method: "POST", body: f });
+          break;
+        } catch {
+          if (waited >= 120) {
+            throw new Error("The OpenDub app on this computer stopped answering. Open it again and press Dub to start over.");
+          }
+          if (waited % 10 === 0) onWait?.(`The OpenDub app stopped answering — waiting for it to come back (${waited} s so far)`);
+          await new Promise((ok) => setTimeout(ok, 2000));
+        }
+      }
       if (!r.ok) throw new Error(`The OpenDub app could not speak: ${(await r.text()).slice(0, 200)}`);
       const { clips } = await r.json();
       return new Blob([Uint8Array.from(atob(clips[0]), (c) => c.charCodeAt(0))], { type: "audio/wav" });

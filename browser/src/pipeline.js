@@ -276,7 +276,7 @@ export async function dub(file, opts, emit) {
     let done = 0;
     // The app on this computer generates one line at a time; the cloud providers take three.
     await pool(lines, provider.id === "local" ? 1 : 3, async (line, i) => {
-      await speakFitted(line, provider, chatter, target, lines, i, info.duration);
+      await speakFitted(line, provider, chatter, target, lines, i, info.duration, log);
       progress(++done / lines.length);
       log(`line ${i + 1}/${lines.length}: ${(line.audio.length / A.SR).toFixed(1)} s (asked ${(line.asked ?? 0).toFixed(1)} s for ${core.wordsIn(line.text)} words) against the speaker's ${(line.seg.end - line.seg.start).toFixed(1)} s`);
     });
@@ -389,7 +389,7 @@ async function translateWithChat(chat, segs, target, sourceName, log) {
   return out;
 }
 
-async function speakFitted(line, provider, chat, target, lines, i, videoEnd = Infinity) {
+async function speakFitted(line, provider, chat, target, lines, i, videoEnd = Infinity, onWait = null) {
   // How long the line should be, rather than how long the original was.
   const { want, room, natural } = core.fitSeconds({
     text: line.text, start: line.seg.start, end: line.seg.end,
@@ -398,7 +398,7 @@ async function speakFitted(line, provider, chat, target, lines, i, videoEnd = In
   line.asked = want;
   if (natural > room * 1.15) line.crowded = +(natural / room).toFixed(2);
   const speak = async () => A.trimSilence(await A.decodeBlob(await provider.speak(line.text, provider.voice, {
-    tags: core.higgsTags(line.tone), speed: line.speed ?? 1, lang: target.iso, duration: want,
+    tags: core.higgsTags(line.tone), speed: line.speed ?? 1, lang: target.iso, duration: want, onWait,
   })));
   line.audio = await speak();
   if (provider.exactDuration) return;  // generated at the length asked for

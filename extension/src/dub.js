@@ -94,9 +94,52 @@ async function offerVoices() {
   }
   free.disabled = true;
   $("#omni").classList.add("is-unavailable");
-  $("#omni-status").textContent = "Not running. Start OpenDub on this computer, or use a key.";
+  $("#omni-status").replaceChildren(
+    document.createTextNode("Not running. "),
+    startButton(),
+    document.createTextNode(" on this computer, or use a key."));
   document.querySelector('input[name="voice"][value="higgs"]').checked = true;
   $("#keywrap").hidden = false;
+}
+
+/**
+ * Ask the system to open the OpenDub app.
+ *
+ * A page cannot start a program — but it can ask for a scheme, and the app
+ * registers opendub:// when it is installed. If nothing is installed nothing
+ * happens and no error is raised either, so the only way to tell is to look
+ * again afterwards: wait for the app to answer, and say where to get it when
+ * it does not.
+ */
+function startButton() {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "linklike";
+  b.textContent = "Start OpenDub";
+  b.addEventListener("click", async () => {
+    b.disabled = true;
+    const status = $("#omni-status");
+    status.textContent = "Asking macOS to open OpenDub…";
+    location.href = "opendub://start";
+    for (let waited = 0; waited < 40; waited++) {
+      await new Promise((ok) => setTimeout(ok, 1000));
+      if (await localAppStatus()) {
+        const free = freeRadio();
+        free.disabled = false;
+        free.checked = true;
+        $("#omni").classList.remove("is-unavailable");
+        status.textContent = "Connected to the OpenDub app on this computer.";
+        $("#keywrap").hidden = true;
+        return;
+      }
+      if (waited === 4) status.textContent = "Waiting for OpenDub to start…";
+    }
+    status.replaceChildren(
+      document.createTextNode("OpenDub did not start. If it is not installed yet, get it from "),
+      Object.assign(document.createElement("a"), { href: "https://opendub.app", target: "_blank", rel: "noreferrer", textContent: "opendub.app" }),
+      document.createTextNode("."));
+  });
+  return b;
 }
 
 // --- running it -------------------------------------------------------------

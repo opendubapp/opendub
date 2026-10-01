@@ -46,3 +46,5 @@ pre { margin: 0; max-height: 190px; overflow: auto; white-space: pre-wrap;
 .result-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .elapsed { color: var(--text-muted); font: var(--type-caption); }
 details.log summary { cursor: pointer; color: var(--text-muted); font: var(--type-caption); margin-bottom: var(--space-2); }
+.linklike { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.linklike:disabled { color: var(--text-muted); cursor: default; }
