@@ -112,7 +112,21 @@ export function elevenlabs(key) {
  * runs in the OpenDub app on the visitor's own computer (./run.sh), which this
  * page calls on localhost. No key, no account, nothing leaves the machine.
  */
-export const LOCAL_APP = "http://127.0.0.1:8910";
+/**
+ * Where that app is. A page the app is serving talks to the app serving it,
+ * whatever port it happened to take; a page on the website has to name the
+ * usual one. Assuming 8910 from inside the app is how a copy running on any
+ * other port tells you it cannot find itself.
+ */
+export const LOCAL_APP = (() => {
+  try {
+    const here = new URL(location.href);
+    if (here.protocol === "http:" && (here.hostname === "127.0.0.1" || here.hostname === "localhost")) {
+      return here.origin;
+    }
+  } catch { /* not a page, or no location: fall through */ }
+  return "http://127.0.0.1:8910";
+})();
 
 export async function localAppStatus() {
   try {

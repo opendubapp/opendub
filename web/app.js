@@ -86,11 +86,19 @@ async function boot() {
   for (const [n, k] of [[src, "ov.source"], [tgt, "ov.target"]]) {
     n.addEventListener("change", () => { try { localStorage.setItem(k, n.value); } catch {} });
   }
-  if (!CFG.has_key) $("#new-hint").textContent = "The server has no BOSON_API_KEY — add it to .env and restart.";
   wireNew();
   wireResult();
-  if (STATIC) {
-    $("#view-local").hidden = false;
+  // Two ways to dub, and which one is offered depends on whether this copy
+  // has a key. The pipeline behind this page sends every step to Higgs —
+  // listening, translating and speaking — so with no key it cannot run at
+  // all, and telling someone to put a line in a .env file inside an
+  // application bundle is not an answer. The one that runs in this page
+  // needs nothing: it listens and translates here and borrows only the voice
+  // from this computer, over the same origin, so no permission is asked for.
+  const freeHere = STATIC || !CFG.has_key;
+  if (freeHere) {
+    if (STATIC) $("#view-local").hidden = false;
+    else { $("#view-new").hidden = true; keyOffer(); }
     wireBrowserDub();
     const kept = await loadDub();
     if (kept) {
@@ -108,12 +116,48 @@ async function boot() {
         await clearDub();
       }
     }
-    await poll("demo");
+    if (STATIC) await poll("demo");     // the finished example; the app has none
     return;
   }
   loadRecent();
   const id = new URLSearchParams(location.hash.slice(1)).get("job");
   if (id) openJob(id);
+}
+
+/**
+ * A place to put a Higgs key, for people who have one.
+ *
+ * Without a key this copy dubs in the page, free, which is the usual case and
+ * needs nothing. With one it can use the pipeline behind this page instead:
+ * better timing, tone, voice-over, burnt-in subtitles. That used to mean
+ * finding a .env file inside the application and restarting; now it is a box.
+ */
+function keyOffer() {
+  const card = el("div", { class: "panel key-offer" });
+  const input = el("input", { type: "text", class: "oa-input", placeholder: "bai-…",
+                              autocomplete: "off", spellcheck: "false" });
+  const note = el("p", { class: "oa-caption" },
+    "Optional. With a key this app also offers tone, voice-over and burnt-in subtitles, and does the listening and translating itself. It is saved on this computer only.");
+  const save = el("button", { type: "button", class: "oa-btn oa-btn--md" }, "Save key");
+  save.addEventListener("click", async () => {
+    const key = input.value.trim();
+    if (!key) return;
+    save.disabled = true; save.textContent = "Saving…";
+    try {
+      const body = new FormData();
+      body.append("key", key);
+      const r = await fetch("/api/local/key", { method: "POST", body });
+      if (!r.ok) throw new Error((await r.json()).detail || `${r.status}`);
+      location.reload();                       // comes back with the fuller pipeline
+    } catch (e) {
+      save.disabled = false; save.textContent = "Save key";
+      note.textContent = `That key was not saved: ${e.message}`;
+    }
+  });
+  card.append(el("h2", {}, "Have a Higgs key?"), note,
+              el("div", { class: "row" }, input, save));
+  $("#view-local").after(card);
+  $("#view-local").hidden = true;
 }
 
 // ---------------------------------------------------------------- new dub
@@ -895,7 +939,21 @@ function wireBrowserDub() {
   form.querySelector('input[value="local"]').addEventListener("change", () => { if (!omniReady) detect(); });
   let remembered = false;
   try { remembered = localStorage.getItem("ov.omni") === "1"; } catch {}
-  if (remembered) detect();
+  // Looking for the app is held back until someone asks for it, because the
+  // first look is what makes the browser ask about the local network, and a
+  // prompt nobody invited is a prompt people refuse. Once the browser has
+  // already said yes there is no prompt left to cause, so there is nothing to
+  // wait for: look straight away and let the card come up connected.
+  // Served by the app itself, this page and the app are the same origin:
+  // there is no prompt to cause and nothing to ask for, so never make
+  // someone press a button to find the program that is serving them.
+  if (remembered || !STATIC) detect();
+  else (async () => {
+    try {
+      const p = await navigator.permissions.query({ name: "local-network-access" });
+      if (p.state === "granted") detect();
+    } catch { /* a browser that cannot be asked is left alone */ }
+  })();
   update();
   form.addEventListener("change", update);
   $("#bkey").addEventListener("input", update);

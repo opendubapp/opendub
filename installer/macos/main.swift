@@ -3,14 +3,19 @@
 // The app is a launcher with an installer in front of it. On first run it
 // fetches uv, then a Python, then OpenDub and the voice, into Application
 // Support — nothing needs the Terminal, admin rights or a package manager.
-// On every run after that it starts the local server and opens opendub.app,
-// which finds it on 127.0.0.1 and dubs with it.
+// On every run after that it starts the local server and shows the dubbing
+// interface in its own window. The interface is the one the server itself
+// serves, so none of the browser's rules apply to it: no permission to ask
+// for before reaching 127.0.0.1, nothing cached for a week, no model to
+// download into a tab, no graphics-card limits. The work happens in Python,
+// on this machine.
 //
 // Quitting stops the server: the process is a child of this app, so there is
 // no daemon left behind and nothing to clean up later.
 
 import SwiftUI
 import AppKit
+import WebKit
 
 // ---------------------------------------------------------------- where things live
 
@@ -249,10 +254,9 @@ final class Installer: ObservableObject {
                 await MainActor.run {
                     phase = .running
                     status = "OpenDub is running on this Mac."
-                    detail = "Go to opendub.app, choose the free voice, and press “Look for the app on this computer”."
+                    detail = ""
                     fraction = nil
                 }
-                NSWorkspace.shared.open(URL(string: Paths.site)!)
                 return
             }
         }
@@ -283,7 +287,20 @@ struct ContentView: View {
     @ObservedObject var installer: Installer
     @State private var showLog = false
 
+    /// Installing is a panel; running is the product. Once the server
+    /// answers there is nothing left to say, so the window gives itself over
+    /// to the interface instead of explaining where to go and find it.
     var body: some View {
+        if installer.phase == .running {
+            DubUI(url: URL(string: "http://127.0.0.1:\(Paths.port)/")!)
+                .frame(minWidth: 940, minHeight: 680)
+                .onAppear { NSApp.windows.first?.setContentSize(NSSize(width: 1080, height: 760)) }
+        } else {
+            panel
+        }
+    }
+
+    private var panel: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
                 Image(systemName: "waveform")
@@ -316,9 +333,6 @@ struct ContentView: View {
                 case .needsInstall:
                     Button("Install OpenDub") { installer.install() }
                         .keyboardShortcut(.defaultAction)
-                case .running:
-                    Button("Open opendub.app") { NSWorkspace.shared.open(URL(string: Paths.site)!) }
-                        .keyboardShortcut(.defaultAction)
                 case .failed:
                     Button("Try again") { installer.install() }
                 default:
@@ -341,14 +355,92 @@ struct ContentView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
-            if installer.phase == .running {
-                Text("Keep this app open while you dub. Quitting stops it.")
-                    .font(.system(size: 11)).foregroundStyle(.tertiary)
-            }
         }
         .padding(20)
         .frame(width: 460)
         .onAppear { installer.start() }
+    }
+}
+
+
+// ---------------------------------------------------------------- the interface
+
+/// The dubbing interface, in this window rather than in a browser.
+///
+/// It is the page the local server already serves, so everything is same
+/// origin and nothing has to be allowed first. Two things a web view does not
+/// do on its own and the page depends on: a link that saves a file, and a link
+/// that should leave the app.
+struct DubUI: NSViewRepresentable {
+    let url: URL
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> WKWebView {
+        let view = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        view.navigationDelegate = context.coordinator
+        view.uiDelegate = context.coordinator
+        view.allowsBackForwardNavigationGestures = false
+        view.setValue(false, forKey: "drawsBackground")
+        view.load(URLRequest(url: url))
+        return view
+    }
+
+    func updateNSView(_ view: WKWebView, context: Context) {}
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
+        private static let ours: Set<String> = ["127.0.0.1", "localhost"]
+
+        /// The product stays in the window; anything else is the web, and the
+        /// web belongs in a browser. Without this, pressing a link to the
+        /// account page replaces the app with a website and there is no way
+        /// back.
+        func webView(_ view: WKWebView, decidePolicyFor action: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let url = action.request.url else { return decisionHandler(.allow) }
+            if let host = url.host, !Self.ours.contains(host) {
+                NSWorkspace.shared.open(url)
+                return decisionHandler(.cancel)
+            }
+            decisionHandler(.allow)
+        }
+
+        /// A page asking to save a file gets a save panel. A web view ignores
+        /// `download` links unless told not to, so without this the button
+        /// that saves the dubbed video looks fine and does nothing.
+        func webView(_ view: WKWebView, decidePolicyFor response: WKNavigationResponse,
+                     decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+            decisionHandler(response.canShowMIMEType ? .allow : .download)
+        }
+
+        func webView(_ view: WKWebView, navigationAction: WKNavigationAction,
+                     didBecome download: WKDownload) { download.delegate = self }
+
+        func webView(_ view: WKWebView, navigationResponse: WKNavigationResponse,
+                     didBecome download: WKDownload) { download.delegate = self }
+
+        /// A page asking for a file gets an open panel. A web view does
+        /// nothing at all when a file input is clicked unless this is here —
+        /// the same omission as downloads, one step earlier: press "Choose a
+        /// video" and the window simply sits there.
+        func webView(_ view: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+                     initiatedByFrame frame: WKFrameInfo,
+                     completionHandler: @escaping ([URL]?) -> Void) {
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+            panel.begin { completionHandler($0 == .OK ? panel.urls : nil) }
+        }
+
+        func download(_ download: WKDownload, decideDestinationUsing response: URLResponse,
+                      suggestedFilename: String,
+                      completionHandler: @escaping (URL?) -> Void) {
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = suggestedFilename
+            panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            panel.begin { completionHandler($0 == .OK ? panel.url : nil) }
+        }
     }
 }
 
@@ -362,7 +454,7 @@ struct OpenDubApp: App {
             ContentView(installer: installer)
                 .onAppear { delegate.installer = installer }
         }
-        .windowResizability(.contentSize)
+        .windowResizability(.contentMinSize)
     }
 }
 

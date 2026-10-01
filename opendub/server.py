@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import os
 import queue
 import re
 import shutil
@@ -223,6 +224,35 @@ def local_health():
     cat = engines.catalog()
     return {"ok": True, "app": "opendub", "engines": cat,
             "omnivoice": any(e["id"] == "omnivoice" and e["ready"] for e in cat)}
+
+
+@app.post("/api/local/key")
+def local_key(key: str = Form("")):
+    """Save a Higgs key, or clear it, without a text editor or a restart.
+
+    Asking someone to put a line in a .env file and start the app again is
+    asking them to find a file they have never seen inside an application
+    bundle. The key goes to the same place it would have gone, and the
+    running process picks it up at once: every call reads config.BOSON_API_KEY
+    when it builds its headers, so there is nothing cached to invalidate.
+    """
+    key = key.strip()
+    if key and not re.fullmatch(r"[A-Za-z0-9._\-]{8,200}", key):
+        raise HTTPException(400, "That does not look like a key.")
+    env = config.ROOT / ".env"
+    kept = []
+    if env.exists():
+        kept = [l for l in env.read_text().splitlines() if not l.startswith("BOSON_API_KEY=")]
+    if key:
+        kept.append(f"BOSON_API_KEY={key}")
+    env.write_text("\n".join(kept) + ("\n" if kept else ""))
+    try:
+        env.chmod(0o600)       # it is a credential sitting in the home folder
+    except OSError:
+        pass
+    config.BOSON_API_KEY = key
+    os.environ["BOSON_API_KEY"] = key
+    return {"ok": True, "has_key": bool(key)}
 
 
 @app.post("/api/local/speak")

@@ -51,6 +51,13 @@ cat > "build/$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <!-- The interface is served by the copy of OpenDub running on this Mac, over
+       plain HTTP on the loopback address. Without this the web view refuses to
+       load it and the window comes up empty. Nothing else may use http. -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key><true/>
+  </dict>
   <key>NSHumanReadableCopyright</key><string>AGPL-3.0. Source: github.com/opendubapp/opendub</string>
 </dict>
 </plist>
