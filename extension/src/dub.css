@@ -34,14 +34,17 @@ pre { margin: 0; max-height: 190px; overflow: auto; white-space: pre-wrap;
 .lines { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .line { display: grid; grid-template-columns: auto 1fr; gap: var(--space-3); padding: var(--space-3);
   border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: var(--bg-subtle); }
-.line-time { color: var(--text-faint); font: var(--type-caption); padding-top: 2px; }
+.line-time { color: var(--text-faint); font: var(--type-caption); padding-top: 2px; cursor: pointer; }
 .line-text { color: var(--text-strong); font: var(--type-ui); }
-/* The site shows two players side by side, source and dub, so its .players
-   is a two-column grid. There is one player here, and inheriting the two
-   columns left it sitting in half the width. */
-.players { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
-.player { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.players video { width: 100%; height: auto; border-radius: var(--radius-lg); background: #000; }
+/* .players, .compare, .timeline, .legend and .stats are the site's and are
+   styled by its stylesheet; there were two players here all along, the page
+   just was not showing the original. */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); margin-top: var(--space-6); }
+.stat { padding: var(--space-3); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: var(--surface-card); }
+.stat b { display: block; font: var(--type-h3, 600 18px/1.3 var(--font-sans)); color: var(--text-strong); }
+.stat span { font: var(--type-caption); color: var(--text-muted); }
+.lines-head { margin-top: var(--space-8); }
+.lines-head h3 { margin: 0 0 var(--space-1); color: var(--text-strong); }
 .run-head, .result-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
 .result-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .elapsed { color: var(--text-muted); font: var(--type-caption); }
