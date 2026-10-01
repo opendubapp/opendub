@@ -4,6 +4,13 @@
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg.type === "open-dub") {
+    // No video named: the page is being opened to dub a file from this
+    // computer, which needs no permission and no host at all.
+    if (!msg.src) {
+      chrome.tabs.create({ url: chrome.runtime.getURL("dub.html") });
+      reply({ opened: true, granted: true });
+      return true;
+    }
     // The media host is not in the manifest — asking only when a video is
     // actually chosen keeps the install free of "read all your browsing".
     const origin = new URL(msg.src).origin + "/*";

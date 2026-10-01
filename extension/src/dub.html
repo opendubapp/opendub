@@ -32,6 +32,9 @@
     <label class="check"><input type="checkbox" id="remove" /> Remove the original voice</label>
     <p id="remove-note" class="muted">Otherwise it is only turned down, and you hear it between the dubbed lines. Keeps the music. Downloads a 172 MB separator once, and is slow without a GPU.</p>
     <button id="start" class="primary" disabled>Fetching the video…</button>
+    <label id="pick" class="pick" hidden>Choose a video on this computer
+      <input id="pickfile" type="file" accept="video/*" hidden />
+    </label>
     <p id="note" class="muted"></p>
     <p class="muted">The first dub downloads the speech model once, about 240 MB. Listening then takes roughly as long as the video, or longer on a machine without a GPU. Each step says what it is doing.</p>
   </section>

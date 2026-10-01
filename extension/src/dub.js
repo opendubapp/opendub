@@ -32,7 +32,24 @@ $("#voice").addEventListener("change", () => {
 
 let file = null;
 (async () => {
-  if (!src) { $("#note").textContent = "No video was passed to this page."; return; }
+  // Opened from the popup with nothing named: most sites build their video
+  // in the page and there is no file to take, and dubbing one of your own
+  // never needed the page anyway.
+  if (!src) {
+    $("#pick").hidden = false;
+    $("#note").textContent = "Nothing is uploaded: the video is read here, on this computer.";
+    $("#pickfile").addEventListener("change", async () => {
+      const chosen = $("#pickfile").files[0];
+      if (!chosen) return;
+      file = chosen;
+      $("#pick").textContent = chosen.name;
+      $("#note").textContent = `${(chosen.size / 1048576).toFixed(1)} MB. It stays on this computer.`;
+      $("#start").disabled = false;
+      $("#start").textContent = "Dub it";
+      await offerVoices();
+    });
+    return;
+  }
   try {
     const res = await fetch(src, { credentials: "omit" });
     if (!res.ok) throw new Error(`the site answered ${res.status}`);
