@@ -73,6 +73,47 @@ check("the dub survives a translator that fails mid-flight", state.done,
 check("and says so in the log rather than dying", /stopped part-way/.test(state.log),
   (state.log.split("\n").find((l) => /stopped part-way|built-in/.test(l)) || "nothing said").trim().slice(0, 100));
 check("falling back to the model on this device", /opus-mt/.test(state.log));
+
+// --- a key the browser filled in for you --------------------------------------
+// The key boxes are password fields, so a browser will offer a saved password
+// for them. That is not a key: the server refuses it. Before, it ended the dub
+// — and after the key started being checked up front, it ended it immediately,
+// for a key nobody typed. A refused *translation* key should cost the wording
+// and nothing else.
+{
+  const ctx2 = await chromium.launchPersistentContext(await mkdtemp(join(tmpdir(), "badkey-")), {
+    channel: "chromium", timeout: 120000,
+    args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  });
+  const page2 = await ctx2.newPage();
+  await page2.goto(`chrome-extension://${id}/dub.html?src=${encodeURIComponent(`${origin}/clip.mp4`)}&name=clip`,
+    { waitUntil: "domcontentloaded" });
+  await page2.waitForFunction(() => !document.querySelector("#start").disabled, { timeout: 60000 });
+  // the free voice, plus a "key" of the sort a password manager supplies
+  await page2.selectOption("#voice", "local");
+  await page2.evaluate(() => {
+    const k = document.querySelector("#key");
+    k.value = "hunter2-a-saved-password";                  // not a key
+    document.querySelector("#keywrap").hidden = false;
+  });
+  await page2.selectOption("#from", "en");
+  await page2.selectOption("#to", "zh-Hans");
+  await page2.click("#start");
+  let st = {};
+  const t0 = Date.now();
+  while (Date.now() - t0 < 900000) {
+    await page2.waitForTimeout(4000);
+    st = await page2.evaluate(() => ({
+      done: !document.querySelector("#done").hidden,
+      log: document.querySelector("#log")?.textContent || "",
+    }));
+    if (st.done || /Failed:/.test(st.log)) break;
+  }
+  check("a refused translation key does not end the dub", st.done,
+    st.done ? "" : (st.log.split("\n").filter((l) => /Failed:/.test(l))[0] || "").slice(0, 120));
+  await ctx2.close();
+}
+
 await ctx.close(); server.close();
 const bad = checks.filter((c) => !c).length;
 console.log(`\n${checks.length - bad}/${checks.length} passed`);
