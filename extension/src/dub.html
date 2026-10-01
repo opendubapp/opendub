@@ -35,13 +35,16 @@
       <div class="field"><label for="to">Dub into</label><select id="to" class="oa-input"></select></div>
     </div>
 
-    <div class="field">
-      <label for="voice">Voice model</label>
-      <select id="voice" class="oa-input">
-        <option value="local">The app on this computer — free</option>
-        <option value="higgs">Higgs Audio — your own key</option>
-      </select>
-    </div>
+    <fieldset class="providers">
+      <legend>Voice model</legend>
+      <label class="provider" id="omni"><input type="radio" name="voice" value="local" checked />
+        <span class="provider-body"><span class="provider-head"><b>On your computer</b><span class="cost-badge cost-free" title="Runs on your computer. No key, no account, nothing uploaded.">Free</span></span>
+        <span class="oa-caption">Open voice models running in the OpenDub app on your computer. Slower than the cloud.</span>
+        <span class="omni-status" id="omni-status" role="status"></span></span></label>
+      <label class="provider"><input type="radio" name="voice" value="higgs" />
+        <span class="provider-body"><span class="provider-head"><b>Higgs Audio</b><span class="cost-badge cost-own-key" title="Calls Boson AI with your own key. You pay Boson directly.">Your own API key</span></span>
+        <span class="oa-caption">Transcribes, translates, reads the tone and clones the voice.</span></span></label>
+    </fieldset>
 
     <div class="field" id="keywrap" hidden>
       <label for="key">Higgs Audio key</label>
