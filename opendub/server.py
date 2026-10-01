@@ -10,6 +10,7 @@ import os
 import queue
 import re
 import shutil
+import subprocess
 import threading
 import time
 import uuid
@@ -23,7 +24,7 @@ import tempfile
 import soundfile as sf
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -253,6 +254,45 @@ def local_key(key: str = Form("")):
     config.BOSON_API_KEY = key
     os.environ["BOSON_API_KEY"] = key
     return {"ok": True, "has_key": bool(key)}
+
+
+@app.post("/api/local/transcode")
+def local_transcode(file: UploadFile = File(...)):
+    """Re-encode a video the page cannot decode, and hand it straight back.
+
+    A browser decodes what its engine was built with. Safari's — which is what
+    the window on a Mac is — has no AV1 decoder, so a perfectly ordinary
+    recording comes back as "this video track cannot be decoded in this
+    environment" and there is nothing the page can do about it. ffmpeg has no
+    such gap, and it is already here for everything else.
+
+    H.264 and AAC because every engine decodes those. The picture is left at
+    its own size and frame rate; only the coding changes.
+    """
+    work = Path(tempfile.mkdtemp(prefix="opendub-tc-"))
+    try:
+        src = work / ("in" + (Path(file.filename or "video.mp4").suffix or ".mp4"))
+        src.write_bytes(file.file.read())
+        out = work / "out.mp4"
+        # Quality-targeted rather than a fixed rate: asking videotoolbox for
+        # 6 Mbit turned a 3.5 MB recording into 53 MB, where the same picture
+        # at crf 20 is 10.6 MB and takes the same half-minute. videotoolbox is
+        # the fallback for a machine without libx264. Neither resizes or
+        # resamples; only the coding changes.
+        for args in (["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"],
+                     ["-c:v", "h264_videotoolbox", "-q:v", "55"]):
+            r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), *args,
+                                "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)],
+                               capture_output=True, text=True)
+            if r.returncode == 0 and out.exists() and out.stat().st_size > 0:
+                break
+        else:
+            raise HTTPException(500, "That video could not be converted here.")
+        data = out.read_bytes()
+        return Response(content=data, media_type="video/mp4",
+                        headers={"Content-Disposition": 'attachment; filename="converted.mp4"'})
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 @app.post("/api/local/speak")

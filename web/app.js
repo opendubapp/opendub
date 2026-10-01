@@ -1016,12 +1016,31 @@ function wireBrowserDub() {
     };
     const m = await loadBrowser();
     let first = true;
-    const done = await m.dub(bfile, opts, (j) => {
+    const onJob = (j) => {
       job = j;
       renderRun();
       show("run");
       if (first) { first = false; document.getElementById("app").scrollIntoView({ behavior: "smooth" }); }
-    });
+    };
+    let done = await m.dub(bfile, opts, onJob);
+    // A browser decodes what its engine was built with, and Safari's has no
+    // AV1 decoder — so an ordinary recording stops the dub with "this video
+    // track cannot be decoded in this environment", which is true and useless.
+    // The app on this computer has ffmpeg, which has no such gap: convert and
+    // go again, once. Only here; a page on the website has no app to ask.
+    if (done.status === "error" && /cannot be decoded/i.test(done.error || "") && omniReady) {
+      try {
+        onJob({ ...done, status: "running", stage: "probe", note: "Converting the video so this window can read it", log: (done.log || []).concat([{ t: 0, msg: "This window cannot decode that video; converting it here first." }]) });
+        const body = new FormData();
+        body.append("file", bfile, bfile.name || "video.mp4");
+        const r = await fetch(`${m.LOCAL_APP || ""}/api/local/transcode`, { method: "POST", body });
+        if (!r.ok) throw new Error(`the app answered ${r.status}`);
+        const converted = new File([await r.blob()], bfile.name || "video.mp4", { type: "video/mp4" });
+        done = await m.dub(converted, opts, onJob);
+      } catch (e) {
+        done = { ...done, error: `${done.error} Converting it here did not work either (${e.message}).` };
+      }
+    }
     updateStart();
     job = done;
     if (done.status === "done") {
