@@ -511,7 +511,7 @@ function renderTimeline() {
     const cls = [Math.abs(l.tempo - 1) > 0.1 ? "fast" : "", l.manual || timings[l.id] ? "manual" : ""].join(" ").trim();
     const b = box(span[0], span[1], cls, `${l.text}${Math.abs(l.tempo - 1) > 0.01 ? ` (${l.tempo}×)` : ""}`);
     b.dataset.id = l.id;
-    if (!STATIC) draggable(b, l, dub, D);
+    if (redubbable()) draggable(b, l, dub, D);
     else b.addEventListener("click", seek(l.start));
     dub.append(b);
   }
@@ -618,10 +618,21 @@ function chipsFor(l) {
   return out;
 }
 
+/**
+ * Can this dub be changed and made again?
+ *
+ * Only by the program that made it. A dub made in the page carries the id
+ * "browser" and exists nowhere else, so editing a line, re-toning it or
+ * dragging it has nothing to apply to: "Apply changes" posted to
+ * /api/jobs/browser/redub and got a 404. Offering the controls anyway is
+ * worse than not having them.
+ */
+const redubbable = () => !STATIC && !!job && job.id !== "browser";
+
 function renderLines() {
   const R = job.result;
   $("#lines").replaceChildren(...R.lines.map((l) => {
-    const ta = el("textarea", { rows: 1, "aria-label": `Translation of line ${l.id + 1}`, lang: R.target, readonly: STATIC });
+    const ta = el("textarea", { rows: 1, "aria-label": `Translation of line ${l.id + 1}`, lang: R.target, readonly: !redubbable() });
     ta.value = l.text;
     const mark = () => { li.classList.toggle("is-edited", l.id in edits || l.id in tones); updateRedubBar(); };
     ta.addEventListener("input", () => {
@@ -630,7 +641,7 @@ function renderLines() {
       mark();
     });
     const was = (l.tone && l.tone.emotion) || "neutral";
-    const sel = el("select", { class: `tone-select${was !== "neutral" ? " is-set" : ""}`, title: "How this line is delivered", "aria-label": `Tone of line ${l.id + 1}`, disabled: STATIC },
+    const sel = el("select", { class: `tone-select${was !== "neutral" ? " is-set" : ""}`, title: "How this line is delivered", "aria-label": `Tone of line ${l.id + 1}`, disabled: !redubbable() },
       CFG.emotions.map((e) => el("option", { value: e, selected: e === was }, e === "neutral" ? "neutral tone" : e)));
     sel.addEventListener("change", () => {
       if (sel.value !== was) tones[l.id] = { ...(l.tone || { expressive: "normal", style: "none" }), emotion: sel.value };
@@ -668,9 +679,20 @@ function renderDownloads() {
   ].filter(Boolean));
 }
 
+/** Why the lines cannot be edited here, said once rather than guessed at. */
+function noteWhyReadOnly() {
+  const old = document.getElementById("readonly-why");
+  if (old) old.remove();
+  if (redubbable() || STATIC) return;
+  const why = el("p", { class: "oa-caption", id: "readonly-why" },
+    "This dub was made in the page, so there is nothing on this computer to change and re-make. Editing a line, re-toning it or dragging it needs the pipeline behind this app, which uses a Higgs key.");
+  $("#lines").after(why);
+}
+
 function updateRedubBar() {
   const n = new Set([...Object.keys(edits), ...Object.keys(tones), ...Object.keys(timings)]).size;
-  $("#redub-bar").hidden = n === 0;
+  $("#redub-bar").hidden = n === 0 || !redubbable();
+  noteWhyReadOnly();
   $("#redub-count").textContent = `${n} line${n === 1 ? "" : "s"} edited`;
 }
 

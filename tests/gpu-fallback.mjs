@@ -71,7 +71,7 @@ await page.waitForFunction(() => !document.querySelector("#start").disabled, { t
 check("the adapter now reports the standard limits",
   await page.evaluate(async () => (await navigator.gpu.requestAdapter()).limits.maxStorageBufferBindingSize === 134217728));
 
-await page.selectOption("#voice", "local");
+await page.check('input[name="voice"][value="local"]');
 await page.selectOption("#from", "en");
 await page.selectOption("#to", "zh-Hans");
 await page.click("#start");

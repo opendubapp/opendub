@@ -102,26 +102,55 @@ async function offerVoices() {
 // --- running it -------------------------------------------------------------
 
 const stages = $("#stages");
+// The same stage rows, icons and log the site and the app show, so a dub
+// looks the same wherever it is run from.
+const ICON = {
+  pending: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>',
+  running: '<svg class="spin" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.56"/></svg>',
+  done: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>',
+  error: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>',
+};
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
 function paint(job) {
+  $("#run-title").textContent = job.filename || name;
+  $("#run-eyebrow").textContent = job.status === "error" ? "Failed"
+    : `Dubbing into ${LANGUAGES.find((l) => l.code === $("#to").value)?.name || $("#to").value}`;
+  const last = job.log.length ? job.log[job.log.length - 1].t : 0;
+  $("#elapsed").textContent = clock(last);
   stages.replaceChildren(...STAGES.map((s) => {
+    const st = job.stages[s.key] || {};
+    const status = st.status || "pending";
     const li = document.createElement("li");
-    li.textContent = s.label || s.key;
-    const state = job.stages[s.key]?.status;
-    li.className = state === "done" ? "done" : job.stage === s.key ? "doing" : "";
+    li.className = `stage is-${status}`;
+    const icon = document.createElement("span");
+    icon.className = "stage-icon";
+    icon.innerHTML = ICON[status] || ICON.pending;
+    const label = document.createElement("span");
+    label.className = "stage-label";
     // The step being worked on says what it is doing and how far along it is.
     // Without this the page is silent through a model download and minutes of
-    // listening, and a slow step is indistinguishable from a stuck one — which
-    // is what it was reported as.
-    if (job.stage === s.key && (job.note || job.stage_progress)) {
-      const pct = job.stage_progress > 0 ? ` ${Math.round(job.stage_progress * 100)}%` : "";
-      const b = document.createElement("span");
-      b.className = "doing-note";
-      b.textContent = ` — ${job.note || "working"}${pct}`;
-      li.append(b);
+    // listening, and a slow step is indistinguishable from a stuck one.
+    const note = status === "running" && job.stage === s.key && job.note ? ` — ${job.note}` : "";
+    label.textContent = (s.label || s.key) + note;
+    const time = document.createElement("span");
+    time.className = "stage-time";
+    time.textContent = st.seconds != null ? `${st.seconds.toFixed(1)}s` : "";
+    li.append(icon, label, time);
+    if (status === "running" && job.stage === s.key && job.stage_progress > 0) {
+      const bar = document.createElement("span");
+      bar.className = "stage-bar";
+      const fill = document.createElement("i");
+      fill.style.width = `${Math.round(job.stage_progress * 100)}%`;
+      bar.append(fill);
+      li.append(document.createElement("span"), bar);
     }
     return li;
   }));
-  $("#log").textContent = job.log.slice(-40).map((l) => `${l.t.toFixed(1)}s  ${l.msg}`).join("\n");
+  const pre = $("#log");
+  const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
+  pre.textContent = job.log.map((l) => `${clock(l.t).padStart(5)}  ${l.msg}`).join("\n");
+  if (atBottom) pre.scrollTop = pre.scrollHeight;
 }
 
 $("#start").addEventListener("click", async () => {
@@ -148,6 +177,10 @@ $("#start").addEventListener("click", async () => {
   }
   $("#start").disabled = true;
   $("#progress").hidden = false;
+  // The site moves from the form to the run view to the result. Leaving the
+  // form on screen underneath is the thing that makes this page feel like a
+  // different product.
+  document.querySelector(".dub-card").hidden = true;
   const done = await dub(file, {
     target: $("#to").value,
     source: $("#from").value,
@@ -171,11 +204,39 @@ $("#start").addEventListener("click", async () => {
     $("#start").disabled = false;
     return;
   }
+  const R = done.result;
   $("#done").hidden = false;
-  $("#player").src = done.result.files.video;
-  $("#save").href = done.result.files.video;
-  $("#save").download = `${name}.${done.result.target}.mp4`;
-  $("#subs").href = done.result.files.subtitles;
-  $("#subs").download = `${name}.${done.result.target}.srt`;
+  $("#res-title").textContent = done.filename || name;
+  $("#res-eyebrow").textContent = `Dubbed into ${R.target_name || R.target}`;
+  $("#dub-lang").textContent = `${R.target_endonym || R.target_name || R.target} — from ${R.source_name || "the original"}`;
+  $("#player").src = R.files.video;
+  $("#save").href = R.files.video;
+  $("#save").download = `${name}.${R.target}.mp4`;
+  $("#subs").href = R.files.subtitles;
+  $("#subs").download = `${name}.${R.target}.srt`;
+  // The lines, as the site and the app show them. Read-only here for the same
+  // reason they are read-only there for a dub made in a page: changing one
+  // means making the dub again, and there is no job on a server to re-make.
+  $("#lines").replaceChildren(...(R.lines || []).map((l) => {
+    const li = document.createElement("li");
+    li.className = "line";
+    const when = document.createElement("span");
+    when.className = "line-time mono";
+    when.textContent = clock(l.start);
+    const text = document.createElement("div");
+    text.className = "line-text";
+    text.lang = R.target;
+    text.textContent = l.text;
+    const src = document.createElement("div");
+    src.className = "oa-caption";
+    src.textContent = l.source;
+    const body = document.createElement("div");
+    body.append(text, src);
+    li.append(when, body);
+    return li;
+  }));
+  $("#lines-why").textContent = (R.lines || []).length
+    ? "Editing a line and dubbing it again needs the pipeline in the OpenDub app, which uses a Higgs key."
+    : "";
   $("#done").scrollIntoView({ behavior: "smooth" });
 });
