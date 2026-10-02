@@ -50,14 +50,17 @@ const (
 const version = "1.0.1"
 
 var (
-	rootDir   string // %LOCALAPPDATA%\OpenDub
-	binDir    string // …\bin      — uv lives here
-	appDir    string // …\app      — the program
-	uvExe     string // …\bin\uv.exe
-	venvDir   string // …\app\.venv
-	pythonExe string // …\app\.venv\Scripts\python.exe
-	uvicorn   string // …\app\.venv\Scripts\uvicorn.exe
-	logPath   string // …\opendub.log — every line, so a failure can be sent to us
+	rootDir       string // %LOCALAPPDATA%\OpenDub
+	binDir        string // …\bin      — uv lives here
+	appDir        string // …\app      — the program
+	uvExe         string // …\bin\uv.exe
+	venvDir       string // …\app\.venv
+	pythonExe     string // …\app\.venv\Scripts\python.exe
+	uvicorn       string // …\app\.venv\Scripts\uvicorn.exe
+	bundledPython string // …\python\python.exe   — the full installer's own
+	sitePackages  string // …\site-packages        — its packages
+	ffmpegDir     string // …\ffmpeg               — ffmpeg.exe and ffprobe.exe
+	logPath       string // …\opendub.log — every line, so a failure can be sent to us
 )
 
 func setPaths() error {
@@ -75,10 +78,29 @@ func setPaths() error {
 	pythonExe = filepath.Join(venvDir, "Scripts", "python.exe")
 	uvicorn = filepath.Join(venvDir, "Scripts", "uvicorn.exe")
 	logPath = filepath.Join(rootDir, "opendub.log")
+	// Where a bundled install keeps the same things. The full installer puts
+	// a Python, every package and ffmpeg beside the program, so there is no
+	// first run: nothing to fetch, nothing to resolve, nothing that can fail
+	// on a machine nobody here can see.
+	bundledPython = filepath.Join(rootDir, "python", "python.exe")
+	sitePackages = filepath.Join(rootDir, "site-packages")
+	ffmpegDir = filepath.Join(rootDir, "ffmpeg")
 	return nil
 }
 
+// bundled reports whether this install carries its own Python and packages.
+func bundled() bool {
+	if info, err := os.Stat(bundledPython); err != nil || info.IsDir() {
+		return false
+	}
+	info, err := os.Stat(sitePackages)
+	return err == nil && info.IsDir()
+}
+
 func installed() bool {
+	if bundled() {
+		return true
+	}
 	info, err := os.Stat(pythonExe)
 	return err == nil && !info.IsDir()
 }
@@ -661,7 +683,7 @@ func updateProgram() {
 	logLine("update: program refreshed")
 	// Only reinstall packages when the list itself changed; uv is quick, but a
 	// network round trip on every launch is not what anyone wants.
-	if after := requirementsHash(); after != before && after != "" {
+	if after := requirementsHash(); after != before && after != "" && !bundled() {
 		setState(phaseWorking, "Updating the voice…", "", -1)
 		if code, err := run(uvExe, []string{"pip", "install", "--python", pythonExe, "-r", "requirements-voice.txt"}, uvEnv, note); err != nil || code != 0 {
 			logLine("update: package update did not finish; the previous set is still installed")
@@ -710,12 +732,29 @@ func startServer() {
 	// a half-finished install — the module is still there, so try that rather
 	// than failing with nothing to say.
 	exe, args := uvicorn, []string{"opendub.server:app", "--host", "127.0.0.1", "--port", fmt.Sprint(port)}
-	if _, err := os.Stat(uvicorn); err != nil {
-		exe, args = pythonExe, append([]string{"-m", "uvicorn"}, args...)
-		logLine("uvicorn.exe is missing; starting with python -m uvicorn instead")
+	var extraEnv []string
+	switch {
+	case bundled():
+		// Its own Python, its own packages, its own ffmpeg: nothing is looked
+		// for on the machine and nothing is downloaded.
+		exe = bundledPython
+		args = append([]string{"-m", "uvicorn"}, args...)
+		extraEnv = []string{
+			"PYTHONPATH=" + sitePackages,
+			"PATH=" + ffmpegDir + string(os.PathListSeparator) + os.Getenv("PATH"),
+		}
+		logLine("starting the bundled Python")
+	default:
+		if _, err := os.Stat(uvicorn); err != nil {
+			exe, args = pythonExe, append([]string{"-m", "uvicorn"}, args...)
+			logLine("uvicorn.exe is missing; starting with python -m uvicorn instead")
+		}
 	}
 	cmd := exec.Command(exe, args...)
 	cmd.Dir = appDir
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 	cmd.SysProcAttr = hidden()
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
