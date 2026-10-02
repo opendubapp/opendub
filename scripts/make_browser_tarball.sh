@@ -15,7 +15,12 @@ OUT="${1:-../openapps/opendub-website-deploy/opendub-browser.tar.gz}"
 
 [ -d web/browser ] || { echo "Build it first: (cd browser && npm run build)"; exit 1; }
 
-tar -czf "$OUT" -C web browser
+# tar -czf puts the current time in the gzip header, so the same files produce
+# a different archive — and a different checksum — every time. An install then
+# believes what it has is stale and fetches twenty-one megabytes it already
+# had. gzip -n leaves the timestamp out, and the checksum becomes a fact about
+# the contents.
+tar -cf - -C web browser | gzip -n > "$OUT"
 # Published beside it so a copy already installed can tell, in a few bytes,
 # whether what it has is what is being served.
 shasum -a 256 "$OUT" | cut -d' ' -f1 > "${OUT%.tar.gz}.sha256"

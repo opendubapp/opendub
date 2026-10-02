@@ -83,7 +83,9 @@ cp -R "$ROOT/web/vendor" "$ROOT/web/browser" "$STAGE/app/web/"
 # would otherwise build an installer that silently goes back to the CDN.
 "$ROOT/scripts/fetch_models.sh" "$ROOT/web/models" >/dev/null
 cp -R "$ROOT/web/models" "$STAGE/app/web/"
-( cd "$ROOT/web" && tar -czf /tmp/opendub-browser-check.tar.gz browser )
+# Reproducibly, so it equals the checksum the site publishes for the same
+# files; see scripts/make_browser_tarball.sh.
+( cd "$ROOT/web" && tar -cf - browser | gzip -n > /tmp/opendub-browser-check.tar.gz )
 shasum -a 256 /tmp/opendub-browser-check.tar.gz | cut -d' ' -f1 > "$STAGE/app/web/browser/.sha256"
 rm -f /tmp/opendub-browser-check.tar.gz
 find "$STAGE" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true

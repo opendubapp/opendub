@@ -257,6 +257,16 @@ final class Installer: ObservableObject {
     /// Without it the page asks its own origin for the pipeline, gets a 404,
     /// and the only route left is the one that needs a key.
     private func ensurePipeline() async {
+        // A bundled install carries it, and serves it from inside the bundle.
+        // Everything below looks at the other location — the one the ordinary
+        // install uses — so for this build it downloaded twenty-one megabytes
+        // into a directory the app never reads, on every launch, and the
+        // comparison that was meant to prevent that could never match anyway:
+        // tar -czf stamps the time into the gzip header, so the checksum of
+        // the same files differs every time it is made.
+        if Paths.isBundled,
+           let web = Paths.bundledApp?.appending(path: "web/browser/opendub-browser.js"),
+           FileManager.default.fileExists(atPath: web.path) { return }
         let marker = Paths.app.appending(path: "web/browser/.sha256")
         let have = (try? String(contentsOf: marker, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let want = try? await text("\(Paths.site)/opendub-browser.sha256"),

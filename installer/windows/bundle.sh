@@ -80,7 +80,9 @@ cp -R "$ROOT/web/browser" "$OUT/payload/app/web/"
 cp -R "$ROOT/web/models" "$OUT/payload/app/web/"
 # The launcher checks this before fetching the pipeline; written here so a
 # bundled install never downloads what it already has.
-( cd "$ROOT/web" && tar -czf /tmp/opendub-browser-check.tar.gz browser )
+# Reproducibly, so it equals the checksum the site publishes for the same
+# files; see scripts/make_browser_tarball.sh.
+( cd "$ROOT/web" && tar -cf - browser | gzip -n > /tmp/opendub-browser-check.tar.gz )
 shasum -a 256 /tmp/opendub-browser-check.tar.gz | cut -d' ' -f1 > "$OUT/payload/app/web/browser/.sha256"
 rm -f /tmp/opendub-browser-check.tar.gz
 find "$OUT/payload" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true

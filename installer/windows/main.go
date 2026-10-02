@@ -620,6 +620,15 @@ var uvEnv = []string{"UV_HTTP_TIMEOUT=600", "UV_NO_PROGRESS=1"}
 // The Mac app has done this since the window was added; Windows was left out,
 // and nothing noticed because nothing here had run it.
 func ensurePipeline() {
+	entryHere := filepath.Join(appDir, "web", "browser", "opendub-browser.js")
+	if _, err := os.Stat(entryHere); err == nil && bundled() {
+		// The full installer put it there. Asking the site whether to replace
+		// it used to download twenty-one megabytes on a first launch no
+		// matter what, because the comparison below could never match: tar
+		// -czf stamps the time into the gzip header, so the same files
+		// checksum differently every time the archive is made.
+		return
+	}
 	marker := filepath.Join(appDir, "web", "browser", ".sha256")
 	have, _ := os.ReadFile(marker)
 	want, err := fetchText(site + "/opendub-browser.sha256")
