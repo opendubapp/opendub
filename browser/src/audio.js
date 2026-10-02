@@ -15,6 +15,12 @@ export async function probe(file) {
 
 /** The whole soundtrack as stereo Float32Arrays at 44.1 kHz. */
 export async function decodeStereo(file) {
+  // WebCodecs' AudioDecoder is what mediabunny decodes with, and the web view
+  // the macOS app opens this page in does not have it on every macOS: the dub
+  // failed at its first step with "AudioDecoder is not available in this
+  // environment". Web Audio decodes the same soundtracks everywhere, and
+  // resamples to the context's rate on the way.
+  if (typeof AudioDecoder === "undefined") return decodeWithWebAudio(file);
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
   const track = await input.getPrimaryAudioTrack();
   const chunks = [];
@@ -30,6 +36,14 @@ export async function decodeStereo(file) {
   let o = 0;
   for (const [l, r] of chunks) { L.set(l, o); R.set(r, o); o += l.length; }
   return rate === SR ? [L, R] : [await resample(L, rate, SR), await resample(R, rate, SR)];
+}
+
+async function decodeWithWebAudio(file) {
+  const ctx = new OfflineAudioContext(2, 1, SR);
+  const buf = await ctx.decodeAudioData(await file.arrayBuffer());
+  const L = buf.getChannelData(0).slice();
+  const R = buf.numberOfChannels > 1 ? buf.getChannelData(1).slice() : L;
+  return [L, R];
 }
 
 export async function resample(samples, from, to) {
