@@ -28,6 +28,25 @@ enum Paths {
     static let python = venv.appending(path: "bin/python")
     static let site = "https://opendub.app"
     static let port = 8910
+
+    /// What the full build carries inside itself.
+    ///
+    /// The ordinary build fetches uv, then a Python, then a gigabyte of
+    /// packages the first time it runs — three things that can fail on a
+    /// machine none of us can see. The full one has no first run: its Python,
+    /// its packages, ffmpeg and the pipeline that runs in the page are all in
+    /// Resources, and nothing is downloaded.
+    static let payload = Bundle.main.resourceURL?.appending(path: "payload")
+    static var bundledPython: URL? { payload?.appending(path: "python/bin/python3") }
+    static var bundledSite: URL? { payload?.appending(path: "site-packages") }
+    static var bundledFfmpeg: URL? { payload?.appending(path: "ffmpeg") }
+    static var bundledApp: URL? { payload?.appending(path: "app") }
+
+    static var isBundled: Bool {
+        guard let py = bundledPython, let site = bundledSite else { return false }
+        let fm = FileManager.default
+        return fm.isExecutableFile(atPath: py.path) && fm.fileExists(atPath: site.path)
+    }
 }
 
 // ---------------------------------------------------------------- running other programs
@@ -95,14 +114,21 @@ final class Installer: ObservableObject {
     @Published var log: [String] = []
     private var server: Process?
 
-    var installed: Bool { FileManager.default.isExecutableFile(atPath: Paths.python.path) }
+    var installed: Bool {
+        Paths.isBundled || FileManager.default.isExecutableFile(atPath: Paths.python.path)
+    }
 
     func start() {
         phase = .checking
         if installed {
             // Freshen the program before starting it. Without this, a fix we
             // publish never reaches anyone who already installed.
-            Task { await update(); await startServer() }
+            // A build that carries everything has nothing to update and
+            // nothing to fetch: start, and be running in a second.
+            Task {
+                if !Paths.isBundled { await update() }
+                await startServer()
+            }
         } else {
             phase = .needsInstall
             status = "OpenDub is not on this Mac yet."
@@ -283,9 +309,24 @@ final class Installer: ObservableObject {
             }
         }
         let task = Process()
+        if Paths.isBundled, let py = Paths.bundledPython, let site = Paths.bundledSite,
+           let ff = Paths.bundledFfmpeg, let app = Paths.bundledApp {
+            // Its own Python, its own packages, its own ffmpeg. Nothing is
+            // looked for on the machine and nothing is fetched.
+            task.executableURL = py
+            task.arguments = ["-m", "uvicorn", "opendub.server:app", "--host", "127.0.0.1", "--port", String(Paths.port)]
+            task.currentDirectoryURL = app
+            var env = ProcessInfo.processInfo.environment
+            env["PYTHONPATH"] = site.path
+            env["PATH"] = ff.path + ":" + (env["PATH"] ?? "/usr/bin:/bin")
+            env["PYTHONHOME"] = ""
+            env.removeValue(forKey: "PYTHONHOME")
+            task.environment = env
+        } else {
         task.executableURL = Paths.venv.appending(path: "bin/uvicorn")
         task.arguments = ["opendub.server:app", "--host", "127.0.0.1", "--port", String(Paths.port)]
         task.currentDirectoryURL = Paths.app
+        }
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = pipe
