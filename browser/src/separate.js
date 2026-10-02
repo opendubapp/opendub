@@ -3,16 +3,21 @@
 // browser. WebGPU when present; single-threaded WASM otherwise (slow).
 import * as ort from "onnxruntime-web";
 import { DemucsProcessor, CONSTANTS } from "demucs-web";
+import { mirror } from "./models.js";
 
 ort.env.wasm.wasmPaths = new URL("/browser/ort/", location.href).href;
 
 export async function separate(L, R, { onProgress } = {}) {
+  // Carried by the installer where there is one; the CDN otherwise.
+  const local = await mirror();
+  const url = local ? `${local}htdemucs_embedded.onnx` : CONSTANTS.DEFAULT_MODEL_URL;
   const processor = new DemucsProcessor({
     ort,
-    onDownloadProgress: (loaded, total) => total && onProgress?.(loaded / total, "Downloading the voice separator (once, 172 MB)"),
+    onDownloadProgress: (loaded, total) => total && onProgress?.(loaded / total,
+      local ? "Loading the voice separator from this computer" : "Downloading the voice separator (once, 172 MB)"),
     onProgress: (p) => onProgress?.(typeof p === "number" ? p : (p?.progress ?? 0), "Separating the voice from the music"),
   });
-  await processor.loadModel(CONSTANTS.DEFAULT_MODEL_URL);
+  await processor.loadModel(url);
   const out = await processor.separate(L, R);
   const n = L.length, bl = new Float32Array(n), br = new Float32Array(n);
   for (const stem of ["drums", "bass", "other"]) {

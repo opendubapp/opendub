@@ -46,9 +46,18 @@ rm "$OUT/python.tar.gz"
 [ -f "$OUT/payload/python/python.exe" ] || { echo "the Python archive is not the shape expected"; exit 1; }
 
 say "every package, as Windows wheels"
+# Both lists. The voice one is enough for a dub whose heavy work happens in the
+# tab; requirements.txt is what the server needs to do the whole thing itself,
+# and leaving it out ships an installer that fails on an import rather than on
+# anything the user did. Nearly all of the weight — torch — is in either way.
+# jieba is the one requirement PyPI has no wheel for, and --only-binary
+# refuses it, which takes the whole resolve down with it. It is pure Python,
+# so a source build produces the same files for any platform — hence a second
+# call rather than loosening the rule for everything.
 "$UV" pip install --python-platform x86_64-pc-windows-msvc --python-version "$PYVER" \
   --target "$OUT/payload/site-packages" --only-binary=:all: \
-  -r "$ROOT/requirements-voice.txt" >/dev/null
+  -r "$ROOT/requirements-voice.txt" -r "$ROOT/requirements.txt" \
+  --no-binary jieba >/dev/null
 
 say "ffmpeg, which Windows does not come with"
 curl -sL "https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-essentials_build.zip" -o "$OUT/ffmpeg.zip"
@@ -65,6 +74,10 @@ mkdir -p "$OUT/payload/app/web"
 cp "$ROOT"/web/*.html "$ROOT"/web/*.js "$ROOT"/web/*.css "$OUT/payload/app/web/"
 cp -R "$ROOT/web/vendor" "$OUT/payload/app/web/"
 cp -R "$ROOT/web/browser" "$OUT/payload/app/web/"
+# The weights the page runs, so the first dub downloads nothing. They are the
+# same files on either platform — ONNX and JSON, nothing compiled.
+"$ROOT/scripts/fetch_models.sh" "$ROOT/web/models" >/dev/null
+cp -R "$ROOT/web/models" "$OUT/payload/app/web/"
 # The launcher checks this before fetching the pipeline; written here so a
 # bundled install never downloads what it already has.
 ( cd "$ROOT/web" && tar -czf /tmp/opendub-browser-check.tar.gz browser )
@@ -75,4 +88,19 @@ find "$OUT/payload" -name '.DS_Store' -delete 2>/dev/null || true
 
 cp "$LAUNCHER" "$OUT/payload/OpenDub.exe"
 
+say "does it carry everything?"
+# A Windows payload cannot be run from here, so this is presence only: every
+# binary and every package the program imports. What the binaries can actually
+# do is checked by the macOS build, which ships the same program.
+python3 "$ROOT/installer/check_payload.py" "$OUT/payload" windows
+
 du -sh "$OUT/payload" | awk '{print "\npayload: " $1}'
+
+say "the installer"
+# One command, one artefact. Leaving makensis as a step someone remembers is
+# how a release ends up carrying last week's payload inside this week's
+# installer.
+command -v makensis >/dev/null || { echo "makensis is not installed: brew install makensis"; exit 1; }
+makensis -V2 full.nsi
+[ -f build/OpenDub-Setup-full.exe ] || { echo "the installer was not produced"; exit 1; }
+ls -l build/OpenDub-Setup-full.exe | awk '{printf "  OpenDub-Setup-full.exe  %.0f MB\n", $5/1048576}'

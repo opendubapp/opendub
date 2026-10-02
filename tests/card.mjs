@@ -47,9 +47,12 @@ await page.goto(site.url, { waitUntil: "networkidle" });
 
 const start = page.locator("#bstart");
 
-// Every state of the button must name the step that is missing.
-check("with no key, the button says which key to enter",
-  /Enter your .* key/.test(await start.textContent()), await start.textContent());
+// Every state of the button must name the step that is missing. The card opens
+// on the free route, so the first thing missing is the app on this computer —
+// not a key. (It used to open on a keyed provider, and this check still asked
+// for the key sentence long after the default moved.)
+check("the card opens on the free route and the button names its step",
+  /Look for the app/.test(await start.textContent()), await start.textContent());
 
 await page.locator('#dub-here input[name="bprovider"][value="higgs"]').check();
 await page.locator("#bkey").fill("bai-test-key");
@@ -89,8 +92,14 @@ check("the files row still lists the video and both subtitle files",
 await page.route("**/127.0.0.1:8910/**", (route) => route.abort());
 await page.goto(site.url, { waitUntil: "networkidle" });
 await page.locator("#dub-here .provider#bomni input").check();
-await page.waitForTimeout(2600);   // the card looks for the app on localhost first
+// Picking the route does not go looking — the card waits for the press, so
+// that a visitor who never chose this is never probed. Press it.
+await start.click();
+// Wait for the search to end rather than for a number of seconds: the probe
+// has its own timeout and a fixed wait reports "no install offered" on a
+// machine that was merely a little slower.
 const panel = page.locator("#bomni-status .install");
+await panel.waitFor({ state: "attached", timeout: 20000 }).catch(() => {});
 check("the free route offers a one-line install", await panel.count() === 1);
 check("the install line is the one the site serves",
   (await page.locator("#bomni-status .install-cmd code").textContent()).trim()

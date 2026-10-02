@@ -33,7 +33,10 @@ def main() -> None:
 
     if DIST.exists():
         shutil.rmtree(DIST)
-    shutil.copytree(ROOT / "web", DIST)
+    # Not web/models: that is 437 MB of weights for the installers to carry,
+    # and the public site deliberately does not serve them. A visitor has
+    # installed nothing, and this box cannot hand a gigabyte to each of them.
+    shutil.copytree(ROOT / "web", DIST, ignore=shutil.ignore_patterns("models"))
     index = DIST / "index.html"
     index.write_text(index.read_text().replace(
         "<head>", '<head>\n<meta name="opendub-static" content="demo" />', 1))

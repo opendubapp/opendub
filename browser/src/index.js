@@ -3,6 +3,30 @@ export { dub, STAGES } from "./pipeline.js";
 export { LANGUAGES } from "./core.js";
 export { localAppStatus, LOCAL_APP } from "./providers.js";
 
+/**
+ * Load the models before anything needs them, and say where they came from.
+ *
+ * The installer carries Whisper and the voice separator, so on a copy served
+ * by the app this is a disk read rather than a download — and doing it on
+ * start would take the one minute out of a first dub that has nothing to do
+ * with the video. Nothing calls it on start yet; what it is used for today is
+ * checking that an installed copy really did get its weights, which is what
+ * tests/models-offline.mjs asserts with the network refused.
+ *
+ * On the website there is no mirror, so this is the ordinary download from
+ * the CDN and callers should not do it uninvited.
+ */
+export async function warmModels({ onProgress } = {}) {
+  const [{ mirror }, whisper] = await Promise.all([import("./models.js"), import("./whisper.js")]);
+  const where = (await mirror()) ? "this computer" : "the network";
+  const { from, model } = await whisper.load(await whisper.gpu(), onProgress);
+  // Run it once, on a second of silence. A truncated weight file opens
+  // perfectly well and only fails when something is asked of it, which
+  // would otherwise be minutes into somebody's first dub.
+  await model(new Float32Array(16000), { return_timestamps: true });
+  return { from: from || where };
+}
+
 /** What this browser can do, so the page offers only what will work. */
 export async function capabilities() {
   let webgpu = false;

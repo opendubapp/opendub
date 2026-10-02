@@ -3,6 +3,7 @@
 // so word times are spread by character share (opensubs does the same).
 import { env, pipeline } from "@huggingface/transformers";
 import { collapseLoops } from "./core.js";
+import { mirror } from "./models.js";
 
 // ONNX Runtime's wasm is served from our own origin, beside this bundle.
 env.backends.onnx.wasm.wasmPaths = new URL("/browser/ort/", location.href).href;
@@ -10,6 +11,7 @@ env.allowLocalModels = false;
 
 let cache = null;
 let cachedOn = null;
+let cachedFrom = null;
 
 export async function gpu() {
   try { return !!(navigator.gpu && (await navigator.gpu.requestAdapter())); } catch { return false; }
@@ -48,9 +50,23 @@ export async function transcribe(mono16k, { language, onProgress } = {}) {
   }
 }
 
-async function listen(mono16k, webgpu, language, onProgress) {
+/**
+ * Load the model, from this computer where the installer carried it.
+ * Separate from listen() so the app can do it on start: it is the one minute
+ * of a first dub that has nothing to do with the video.
+ */
+export async function load(webgpu, onProgress) {
   if (!cache || cachedOn !== webgpu) {
     cachedOn = webgpu;
+    // The installer carries these; when it does, they come from the app on
+    // this computer and nothing is downloaded. Everywhere else this is null
+    // and the CDN defaults stand. Set before the pipeline is created, since
+    // that is when the files are asked for.
+    const local = await mirror();
+    if (local) {
+      env.remoteHost = `${local}hf/`;
+      env.remotePathTemplate = "{model}/";
+    }
     const files = new Map();
     // small, not base. Base loses whole passages of Mandarin: on one reported video
     // it returned nothing at all for the first eight seconds and looped for
@@ -70,12 +86,17 @@ async function listen(mono16k, webgpu, language, onProgress) {
         if (p.status === "progress" && p.total) {
           files.set(p.file, [p.loaded, p.total]);
           const [l, t] = [...files.values()].reduce(([a, b], [c, d]) => [a + c, b + d], [0, 0]);
-          onProgress?.(l / t, "Downloading Whisper (once)");
+          onProgress?.(l / t, local ? "Loading Whisper from this computer" : "Downloading Whisper (once)");
         }
       },
     });
+    cachedFrom = local ? "this computer" : "the network";
   }
-  const asr = await cache;
+  return { from: cachedFrom, model: await cache };
+}
+
+async function listen(mono16k, webgpu, language, onProgress) {
+  const { model: asr } = await load(webgpu, onProgress);
   onProgress?.(0, "Listening");
   const out = await asr(mono16k, {
     return_timestamps: true, chunk_length_s: 30, stride_length_s: 5,

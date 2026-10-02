@@ -295,16 +295,16 @@
           </div>
         </div>
         <div class="install-line">
-          <b>Install it in one line</b>
+          <div class="install-downloads">
+            <a class="oa-btn oa-btn--primary oa-btn--sm" href="/OpenDub-full.dmg" download>Download OpenDub for Mac</a>
+            <a class="oa-btn oa-btn--secondary oa-btn--sm" href="/OpenDub-Setup-full.exe" download>Download OpenDub for Windows</a>
+          </div>
+          <p class="oa-caption">Open it and press Install. Python, ffmpeg and everything the app runs are already inside — no terminal, nothing else to install, and no key to find. The Mac build is for Apple Silicon.</p>
+          <b class="install-or">Or install it with one line</b>
           <pre><code>curl -fsSL https://opendub.app/install.sh | bash</code></pre>
-          <p class="oa-caption">macOS and Linux. About 2 GB, a few minutes. It installs the free voice and starts it, so the card at the top can dub with it. Nothing leaves your computer.</p>
+          <p class="oa-caption">macOS and Linux. This one fetches Python and the packages as it goes and uses the system's own ffmpeg. About 2 GB, a few minutes. Everything stays on your computer either way.</p>
         </div>
-        <ol class="local-steps">
-          <li><b>Install</b> Python 3.12 and ffmpeg (Homebrew's <code>ffmpeg</code> has everything needed).</li>
-          <li><b>Add a key</b> for the Higgs route: put <code>BOSON_API_KEY=…</code> in a <code>.env</code> file.</li>
-          <li><b>Start it</b> with <code>./run.sh</code> and open <code>http://127.0.0.1:8910</code>.</li>
-        </ol>
-        <p class="oa-caption">The source release is coming soon.</p>
+        <p class="oa-caption">All of it is open source, AGPL-3.0: <a href="https://github.com/opendubapp/opendub">github.com/opendubapp/opendub</a>.</p>
       </div>
 
       <div class="recent" id="recent" hidden>

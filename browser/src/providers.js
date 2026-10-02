@@ -131,7 +131,13 @@ export const LOCAL_APP = (() => {
 export async function localAppStatus() {
   try {
     const r = await fetch(`${LOCAL_APP}/api/local/health`, { signal: AbortSignal.timeout(2500) });
-    return r.ok ? await r.json() : null;
+    if (!r.ok) return null;
+    // This origin has now answered, so the model mirror may use it. Said here
+    // rather than probed there: by the time anything wants a model, the only
+    // page that may reach 127.0.0.1 is one that already has.
+    const { appIsAt } = await import("./models.js");
+    appIsAt(LOCAL_APP);
+    return await r.json();
   } catch { return null; }
 }
 

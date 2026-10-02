@@ -40,6 +40,13 @@ let renderedVersion = null;
 // No backend (the public site): the page shows a finished demo dub from static
 // files under demo/, read-only, and explains how to run OpenDub yourself.
 let STATIC = false;
+// Which of the two routes this copy offers. Without a key the panel below the
+// hero is hidden on purpose, and resetNew() has to know that before it shows
+// anything.
+let freeHere = false;
+// Put the hero card back to "choose a video". Assigned by wireBrowserDub(),
+// which owns the state it clears; null until then.
+let resetBrowserCard = null;
 
 // ---------------------------------------------------------------- boot
 
@@ -95,7 +102,7 @@ async function boot() {
   // application bundle is not an answer. The one that runs in this page
   // needs nothing: it listens and translates here and borrows only the voice
   // from this computer, over the same origin, so no permission is asked for.
-  const freeHere = STATIC || !CFG.has_key;
+  freeHere = STATIC || !CFG.has_key;
   if (freeHere) {
     if (STATIC) $("#view-local").hidden = false;
     else { $("#view-new").hidden = true; keyOffer(); }
@@ -173,6 +180,7 @@ function wireNew() {
     document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-checked", String(x === b)));
   }));
   $("#start").addEventListener("click", start);
+  updateServerStart();
 }
 
 function pick(f) {
@@ -189,7 +197,15 @@ function pick(f) {
     URL.revokeObjectURL(v.src);
   };
   v.onerror = () => { $("#drop-sub").textContent = `${mb} MB`; };
-  $("#start").disabled = !CFG.has_key;
+  updateServerStart();
+}
+
+/** A disabled button with its usual label reads as a broken page: say why. */
+function updateServerStart() {
+  const btn = $("#start");
+  if (!CFG.has_key) { btn.disabled = true; btn.textContent = "Add a Higgs key to dub here"; return; }
+  if (!file) { btn.disabled = true; btn.textContent = "Choose a video first"; return; }
+  btn.disabled = false; btn.textContent = "Dub this video";
 }
 
 async function start() {
@@ -219,8 +235,7 @@ async function start() {
   } catch (e) {
     $("#new-hint").textContent = `Upload failed: ${e.message}`;
   } finally {
-    btn.disabled = false;
-    btn.textContent = "Dub this video";
+    updateServerStart();
   }
 }
 
@@ -740,6 +755,19 @@ function resetNew() {
   job = null;
   history.replaceState(null, "", location.pathname);
   $("#v-src").pause(); $("#v-dub").pause();
+  // Back to the route that made the dub, not to the other one. With no key
+  // the panel below is hidden at boot because the pipeline behind it sends
+  // every step to Higgs and there is nothing to send with; show("new") would
+  // reveal it anyway and hand back a form whose only button is permanently
+  // grey. The dub was made in the card at the top, so that is where this goes.
+  if (freeHere) {
+    $("#view-new").hidden = true;
+    $("#view-run").hidden = true;
+    $("#view-result").hidden = true;
+    resetBrowserCard?.();
+    document.getElementById("dub-here")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
   show("new");
 }
 
@@ -797,6 +825,16 @@ function wireBrowserDub() {
   ["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("is-over"); }));
   ["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("is-over"); }));
   drop.addEventListener("drop", (ev) => pick(ev.dataTransfer.files[0]));
+  // What "start again" means up here: the chosen video is gone, the drop zone
+  // says so again, and the button goes back to naming the next step itself.
+  resetBrowserCard = () => {
+    bfile = null;
+    input.value = "";
+    drop.classList.remove("has-file");
+    $("#bdrop-title").textContent = "Choose a video, or drop it here";
+    $("#bdrop-sub").textContent = "Up to 5 minutes. It never leaves this device.";
+    update();
+  };
 
   const PROVIDER_NAME = { higgs: "Higgs Audio", elevenlabs: "ElevenLabs" };
   const PROVIDERS = {
@@ -935,8 +973,12 @@ function wireBrowserDub() {
     const line = el("span", { class: "install-cmd", hidden: mac || win }, el("code", {}, cmd), copy);
     const kids = [];
     if (mac || win) {
+      // The installer that carries everything, not the small one that fetches
+      // Python, the packages and — on Windows — an ffmpeg that is not there.
+      // Those three downloads on someone else's machine are three ways to
+      // fail, and every one of them has failed for somebody this week.
       kids.push(el("a", { class: "oa-btn oa-btn--primary oa-btn--sm install-dl",
-                          href: mac ? "/OpenDub.dmg" : "/OpenDub-setup.exe", download: "" },
+                          href: mac ? "/OpenDub-full.dmg" : "/OpenDub-Setup-full.exe", download: "" },
                    t(mac ? "Download OpenDub for Mac" : "Download OpenDub for Windows")),
                 el("span", { class: "oa-caption" }, t("Open it and press Install. No terminal, nothing to set up.")),
                 el("button", { type: "button", class: "install-toggle",
@@ -945,8 +987,13 @@ function wireBrowserDub() {
     } else {
       kids.push(el("b", {}, t("Install it in one line")), line);
     }
+    // The size depends on which of the two they took: the installer carries
+    // everything and is about 700 MB; the one-line route fetches roughly 2 GB
+    // as it goes. Say both rather than a number that is wrong for half of them.
     return el("span", { class: "install" }, ...kids,
-      el("span", { class: "oa-caption" }, t("About 2 GB, a few minutes. It all stays on this computer.")),
+      el("span", { class: "oa-caption" }, mac || win
+        ? t("About 700 MB. Everything it needs is inside — it all stays on this computer.")
+        : t("About 2 GB, a few minutes. It all stays on this computer.")),
       el("span", { class: "oa-caption" }, t("When it finishes, press the button below.")),
       el("span", { class: "oa-caption" }, t("Your browser may ask to allow access to your local network. That is this app on your computer — nothing else.")));
   }

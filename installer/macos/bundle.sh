@@ -42,17 +42,35 @@ rm /tmp/opendub-python.tar.gz
 [ -x "$STAGE/python/bin/python3" ] || { echo "the Python archive is not the shape expected"; exit 1; }
 
 say "every package"
+# Both lists, not just the voice one. requirements-voice.txt is what a install
+# needs to *speak* while the tab does the separating, transcribing and
+# rendering; requirements.txt is what the whole pipeline needs to run here
+# instead. A bundle that carries only the first has a working free route and a
+# server that fails on an import the moment anyone uses the other one, which is
+# not what "carries everything" means. The overlap is almost all of it — torch
+# is already in by way of the voice — so the second list costs little.
+# jieba is the one requirement PyPI has no wheel for, and --only-binary
+# refuses it, which takes the whole resolve down with it. It is pure Python,
+# so a source build produces the same files for any platform — hence a second
+# call rather than loosening the rule for everything.
 "$UV" pip install --python-platform "$PY_PLATFORM" --python-version 3.12 \
   --target "$STAGE/site-packages" --only-binary=:all: \
-  -r "$ROOT/requirements-voice.txt" >/dev/null
+  -r "$ROOT/requirements-voice.txt" -r "$ROOT/requirements.txt" \
+  --no-binary jieba >/dev/null
 
-say "ffmpeg, which macOS does not come with"
+say "ffmpeg and ffprobe, which macOS does not come with"
+# Both binaries. They are separate downloads and shipping only the first is a
+# bug that hides here and not on a developer's machine: Homebrew's ffprobe is
+# on this PATH and gets picked up, so a dub works in testing and dies on the
+# very first step — probing the video — for everyone else.
 mkdir -p "$STAGE/ffmpeg"
-curl -sL "https://www.osxexperts.net/ffmpeg711arm.zip" -o /tmp/opendub-ffmpeg.zip
-7z e -y -o"$STAGE/ffmpeg" /tmp/opendub-ffmpeg.zip ffmpeg >/dev/null
-rm /tmp/opendub-ffmpeg.zip
-chmod +x "$STAGE/ffmpeg/ffmpeg"
-[ -x "$STAGE/ffmpeg/ffmpeg" ] || { echo "ffmpeg did not come out of the archive"; exit 1; }
+for tool in ffmpeg ffprobe; do
+  curl -sL "https://www.osxexperts.net/${tool}711arm.zip" -o "/tmp/opendub-$tool.zip"
+  7z e -y -o"$STAGE/ffmpeg" "/tmp/opendub-$tool.zip" "$tool" >/dev/null
+  rm "/tmp/opendub-$tool.zip"
+  chmod +x "$STAGE/ffmpeg/$tool"
+  [ -x "$STAGE/ffmpeg/$tool" ] || { echo "$tool did not come out of the archive"; exit 1; }
+done
 
 say "the program, and the pipeline that runs in the page"
 mkdir -p "$STAGE/app/web"
@@ -60,11 +78,23 @@ cp -R "$ROOT/opendub" "$STAGE/app/"
 cp "$ROOT/requirements.txt" "$ROOT/requirements-voice.txt" "$ROOT/LICENSE" "$STAGE/app/"
 cp "$ROOT"/web/*.html "$ROOT"/web/*.js "$ROOT"/web/*.css "$STAGE/app/web/"
 cp -R "$ROOT/web/vendor" "$ROOT/web/browser" "$STAGE/app/web/"
+# The weights the page runs, so the first dub downloads nothing. Fetched here
+# rather than assumed present: the directory is git-ignored, so a fresh clone
+# would otherwise build an installer that silently goes back to the CDN.
+"$ROOT/scripts/fetch_models.sh" "$ROOT/web/models" >/dev/null
+cp -R "$ROOT/web/models" "$STAGE/app/web/"
 ( cd "$ROOT/web" && tar -czf /tmp/opendub-browser-check.tar.gz browser )
 shasum -a 256 /tmp/opendub-browser-check.tar.gz | cut -d' ' -f1 > "$STAGE/app/web/browser/.sha256"
 rm -f /tmp/opendub-browser-check.tar.gz
 find "$STAGE" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 find "$STAGE" -name '.DS_Store' -delete 2>/dev/null || true
+
+say "does it carry everything?"
+# Asked of the payload, not assumed. Every module is imported by the bundled
+# Python with only its own site-packages on the path, and ffmpeg is asked for
+# the encoders and filters a dub uses. Both run with a bare PATH, so this
+# machine's Homebrew cannot answer on the payload's behalf.
+python3 "$ROOT/installer/check_payload.py" "$STAGE" macos
 
 say "into the bundle"
 cp -R "$STAGE" "$APPDIR/Contents/Resources/payload"

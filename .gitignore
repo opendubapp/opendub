@@ -23,3 +23,7 @@ installer/*/build/
 installer/macos/AppIcon.icns
 browser/node_modules/
 extension/build/
+
+# The model weights the installers carry: other people's bytes, fetched by
+# scripts/fetch_models.sh, not part of this history.
+web/models/
