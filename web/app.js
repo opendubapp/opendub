@@ -856,7 +856,20 @@ function wireBrowserDub() {
       el("span", {}, t("Looking for the OpenDub app on this computer…")),
       el("span", { class: "oa-caption" }, t("Your browser may ask to allow access to your local network. That is this app on your computer — nothing else.")));
     const startedAt = Date.now();
-    const m = await loadBrowser();
+    // The pipeline is a separate download, and an install that has not
+    // fetched it yet answers 404 for it. The import then throws, this
+    // function stops, and the button looks dead — which is exactly how it
+    // was reported: "pressed it, nothing happens". Say what is missing.
+    let m;
+    try {
+      m = await loadBrowser();
+    } catch (e) {
+      st.className = "omni-status is-bad";
+      st.replaceChildren(el("span", {}, t("The dubbing pipeline is not installed yet.")),
+        el("span", { class: "oa-caption" },
+          t("Quit OpenDub and open it again — it fetches the missing part on start. If it keeps happening, the log is in the app's Details.")));
+      return;
+    }
     const s = await m.localAppStatus();
     engines = s?.engines || (s?.omnivoice ? [{ id: "omnivoice", name: "OmniVoice", ready: true, commercial: false, exact_duration: true, note: "" }] : []);
     omniReady = engines.some((e) => e.ready);

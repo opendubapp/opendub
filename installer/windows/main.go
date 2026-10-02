@@ -324,7 +324,13 @@ func unzipFlat(src, dst string) error {
 // untarStrip1 unpacks a .tar.gz into dst, dropping the single leading path
 // component — what `tar --strip-components 1` does, which is what the Mac app
 // and install.sh both rely on.
-func untarStrip1(src, dst string) error {
+// untarStrip1 unpacks dropping the archive's own root directory; untarInto
+// keeps it, which is what the pipeline archive wants — it holds browser/…
+// and that is the name the page asks for.
+func untarStrip1(src, dst string) error { return untar(src, dst, true) }
+func untarInto(src, dst string) error   { return untar(src, dst, false) }
+
+func untar(src, dst string, stripRoot bool) error {
 	f, err := os.Open(src)
 	if err != nil {
 		return friendly("OpenDub could not be unpacked.")
@@ -349,8 +355,11 @@ func untarStrip1(src, dst string) error {
 			return friendly("OpenDub could not be unpacked — the download looks incomplete.")
 		}
 
-		rel, ok := strip1(header.Name)
-		if !ok {
+		rel, ok := header.Name, true
+		if stripRoot {
+			rel, ok = strip1(header.Name)
+		}
+		if !ok || rel == "" {
 			continue
 		}
 		target := filepath.Join(dst, rel)
@@ -578,6 +587,64 @@ var uvEnv = []string{"UV_HTTP_TIMEOUT=600", "UV_NO_PROGRESS=1"}
 // voice and Python, the parts that take minutes, are untouched — so it costs a
 // second and means a published fix arrives on its own. A failure here is not
 // worth stopping for: the copy already on disk still runs.
+// ensurePipeline fetches the part of the product that runs in the page.
+//
+// It is not in opendub.tar.gz, because that one is downloaded on every launch
+// to pick up fixes and this is twenty-one megabytes. Without it the window
+// opens, the page loads, and the dubbing pipeline answers 404 — which is how
+// this was reported: "Look for the app on this computer" appeared to do
+// nothing, because the click reaches for a module that is not there.
+//
+// The Mac app has done this since the window was added; Windows was left out,
+// and nothing noticed because nothing here had run it.
+func ensurePipeline() {
+	marker := filepath.Join(appDir, "web", "browser", ".sha256")
+	have, _ := os.ReadFile(marker)
+	want, err := fetchText(site + "/opendub-browser.sha256")
+	if err != nil || want == "" {
+		logLine("pipeline: could not ask which version is current; keeping what is here")
+		return
+	}
+	entry := filepath.Join(appDir, "web", "browser", "opendub-browser.js")
+	if strings.TrimSpace(string(have)) == want {
+		if _, err := os.Stat(entry); err == nil {
+			return
+		}
+	}
+	setState(phaseWorking, "Getting the dubbing pipeline…", "21 MB, once.", 0)
+	archive := filepath.Join(rootDir, "browser.tar.gz")
+	if err := download(site+"/opendub-browser.tar.gz", archive, "the dubbing pipeline", setFraction); err != nil {
+		logLine("pipeline: could not download: " + err.Error())
+		return
+	}
+	defer os.Remove(archive)
+	web := filepath.Join(appDir, "web")
+	if err := os.MkdirAll(web, 0o755); err != nil {
+		logLine("pipeline: could not make room for it: " + err.Error())
+		return
+	}
+	// The archive holds browser/… , so no leading component is dropped here.
+	if err := untarInto(archive, web); err != nil {
+		logLine("pipeline: could not unpack: " + err.Error())
+		return
+	}
+	_ = os.WriteFile(marker, []byte(want), 0o644)
+	logLine("pipeline: installed")
+}
+
+func fetchText(url string) (string, error) {
+	resp, err := web.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("%s answered %d", url, resp.StatusCode)
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	return strings.TrimSpace(string(b)), err
+}
+
 func updateProgram() {
 	setState(phaseWorking, "Checking for updates…", "", -1)
 	archive := filepath.Join(rootDir, "opendub-update.tar.gz")
@@ -947,6 +1014,7 @@ func main() {
 		setState(phaseChecking, "Starting…", "", -1)
 		go func() {
 			updateProgram()
+			ensurePipeline()
 			startServer()
 		}()
 	} else {
