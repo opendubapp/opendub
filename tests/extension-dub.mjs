@@ -20,7 +20,7 @@ const require = createRequire(process.env.PLAYWRIGHT_FROM
   || "/Users/dariuskohsg/Downloads/sharing_folder/openapps/opencrowd/node_modules/");
 const { chromium } = require("playwright");
 
-const EXT = "/Users/dariuskohsg/Downloads/sharing_folder/openvoice/extension/build/chrome";
+const EXT = process.env.OPENDUB_EXT || new URL("../extension/build/chrome", import.meta.url).pathname;
 const CLIP = process.argv[3] || "/tmp/clip8s.mp4";
 const BUDGET = Number(process.argv[2] || 900) * 1000;   // a dub on the processor is slow
 

@@ -872,7 +872,7 @@ function wireBrowserDub() {
       btn.textContent = label;
       btn.disabled = disabled;
     };
-    if (p.free && !omniReady) return set("connect", "Look for the app on this computer", false);
+    if (p.free && !omniReady) return set("connect", t("Look for the app on this computer"), false);
     if (!p.free && !$("#bkey").value.trim()) return set("dub", `Enter your ${PROVIDER_NAME[provider()]} key above`, true);
     if (!bfile) return set("dub", "Choose a video first", true);
     set("dub", "Dub on this device", false);
@@ -885,6 +885,8 @@ function wireBrowserDub() {
   // Once someone has connected, Chrome remembers the permission and so do we.
   const remember = (v) => { try { v ? localStorage.setItem("ov.omni", "1") : localStorage.removeItem("ov.omni"); } catch {} };
   async function detect() {
+    stopWatching();
+    link("checking");
     const st = $("#bomni-status");
     st.className = "omni-status";
     // Chrome asks permission before a public page may reach 127.0.0.1, and the
@@ -917,11 +919,17 @@ function wireBrowserDub() {
     const left = 700 - (Date.now() - startedAt);
     if (left > 0) await new Promise((r) => setTimeout(r, left));
     if (omniReady) {
+      link("ready");
       st.className = "omni-status is-ready";
       st.textContent = t("Connected to the OpenDub app on this computer.");
       form.querySelector('input[value="local"]').checked = true;
       fillEngines();
     } else {
+      link("missing");
+      // The browser has been asked once already, so looking again costs no
+      // prompt: keep looking while the installer runs or the app starts, and
+      // connect the moment it answers rather than waiting for a click.
+      watch();
       st.className = "omni-status is-missing";
       // The app was not there. Telling someone to run ./run.sh assumes they
       // already have OpenDub; most people asking for the free voice do not,
@@ -948,6 +956,72 @@ function wireBrowserDub() {
     } catch { return false; }
   }
 
+  // The top of the card says whether the app is there, in one line with one
+  // button, because that decides what the card can do and it used to be said
+  // only inside the free option, in caption type.
+  const IS_MAC = /mac/i.test(navigator.userAgentData?.platform || navigator.platform || "");
+  function link(state) {
+    const box = $("#applink"), text = $("#applink-text"), btn = $("#applink-btn");
+    box.dataset.state = state;
+    btn.hidden = false;
+    btn.onclick = null;
+    if (state === "checking") {
+      text.textContent = t("Looking for the OpenDub app on this computer…");
+      btn.hidden = true;
+    } else if (state === "ready") {
+      text.textContent = t("Connected to the OpenDub app on this computer.");
+      btn.hidden = true;
+    } else if (state === "waiting") {
+      text.textContent = t("Waiting for OpenDub to start. This page connects by itself.");
+      btn.hidden = true;
+    } else if (state === "missing") {
+      text.textContent = t("OpenDub is not running on this computer.");
+      btn.textContent = IS_MAC ? t("Start OpenDub") : t("Get OpenDub");
+      btn.onclick = IS_MAC ? startApp : showInstall;
+    } else {
+      text.textContent = t("The free voices run in the OpenDub app on this computer.");
+      btn.textContent = t("Connect to OpenDub");
+      btn.onclick = () => detect();
+    }
+  }
+  function showInstall() {
+    form.querySelector('input[value="local"]').checked = true;
+    update();
+    $("#bomni").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  /** Look again, quietly, until the app answers; connect when it does. */
+  let watching = null;
+  function stopWatching() { if (watching) { clearInterval(watching); watching = null; } }
+  function watch(seconds = 15 * 60, every = 3) {
+    stopWatching();
+    const until = Date.now() + seconds * 1000;
+    watching = setInterval(async () => {
+      if (Date.now() > until) return stopWatching();
+      if (document.hidden) return;
+      const m = await loadBrowser();
+      if (await m.localAppStatus()) { stopWatching(); detect(); }
+    }, every * 1000);
+  }
+  // Back from the installer or the Dock: look at once rather than on the next tick.
+  addEventListener("focus", async () => {
+    if (!watching) return;
+    const m = await loadBrowser();
+    if (await m.localAppStatus()) { stopWatching(); detect(); }
+  });
+
+  /**
+   * Ask macOS to open the app. The installer registers opendub://, and a page
+   * may ask for a scheme though it cannot start a program; whether it worked
+   * shows only in the app answering, so wait for that and say so meanwhile.
+   */
+  function startApp() {
+    link("waiting");
+    location.href = "opendub://start";
+    watch(90, 1);
+    setTimeout(() => { if (!omniReady && $("#applink").dataset.state === "waiting") { link("missing"); watch(); } }, 90 * 1000);
+  }
+
   /** One line that installs the free voice and starts it, with a copy button. */
   function installPanel() {
     const cmd = "curl -fsSL https://opendub.app/install.sh | bash";
@@ -972,6 +1046,10 @@ function wireBrowserDub() {
     const mac = /mac/i.test(ua), win = /win/i.test(ua);
     const line = el("span", { class: "install-cmd", hidden: mac || win }, el("code", {}, cmd), copy);
     const kids = [];
+    // Installed but not running is the commoner case for anyone who has been
+    // here before, and the Mac app registers opendub:// to be started by name.
+    if (mac) kids.push(el("button", { type: "button", class: "oa-btn oa-btn--secondary oa-btn--sm", onclick: startApp },
+                          t("Already installed? Start OpenDub")));
     if (mac || win) {
       // The installer that carries everything, not the small one that fetches
       // Python, the packages and — on Windows — an ffmpeg that is not there.
@@ -994,7 +1072,7 @@ function wireBrowserDub() {
       el("span", { class: "oa-caption" }, mac || win
         ? t("About 700 MB. Everything it needs is inside — it all stays on this computer.")
         : t("About 2 GB, a few minutes. It all stays on this computer.")),
-      el("span", { class: "oa-caption" }, t("When it finishes, press the button below.")),
+      el("span", { class: "oa-caption" }, t("When it finishes, this page connects by itself.")),
       el("span", { class: "oa-caption" }, t("Your browser may ask to allow access to your local network. That is this app on your computer — nothing else.")));
   }
 
@@ -1029,6 +1107,7 @@ function wireBrowserDub() {
   // Served by the app itself, this page and the app are the same origin:
   // there is no prompt to cause and nothing to ask for, so never make
   // someone press a button to find the program that is serving them.
+  link("idle");
   if (remembered || !STATIC) detect();
   else (async () => {
     try {

@@ -414,3 +414,16 @@ section { scroll-margin-top: 5.5rem; }
 .key-offer { margin-top: var(--space-6, 24px); }
 .key-offer .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .key-offer .oa-input { flex: 1 1 240px; min-width: 0; }
+
+/* The app on this computer, said once at the top of the card rather than only
+   inside the free option: whether it is there decides what the card can do. */
+.app-link { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px;
+  margin-bottom: 16px; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: var(--bg-sunken); }
+.app-link-text { flex: 1 1 14rem; min-width: 0; color: var(--text-strong); }
+.app-link-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-faint); flex: none; }
+.app-link[data-state="ready"] .app-link-dot { background: var(--success-fg); }
+.app-link[data-state="missing"] .app-link-dot { background: var(--warning-fg); }
+.app-link[data-state="checking"] .app-link-dot,
+.app-link[data-state="waiting"] .app-link-dot { background: var(--warning-fg); animation: app-link-pulse 1.2s ease-in-out infinite; }
+@keyframes app-link-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .app-link-dot { animation: none !important; } }

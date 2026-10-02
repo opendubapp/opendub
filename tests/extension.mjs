@@ -18,7 +18,10 @@ const require = createRequire(process.env.PLAYWRIGHT_FROM
   || "/Users/dariuskohsg/Downloads/sharing_folder/openapps/opencrowd/node_modules/");
 const { chromium } = require("playwright");
 
-const EXT = "/Users/dariuskohsg/Downloads/sharing_folder/openvoice/extension/build/chrome";
+// This repository's own build (extension/build.sh), not a copy elsewhere: the
+// path used to name a checkout from before the rename, and the test passed
+// against that old build whatever was changed here.
+const EXT = process.env.OPENDUB_EXT || new URL("../extension/build/chrome", import.meta.url).pathname;
 const DEMO = "/Users/dariuskohsg/Downloads/sharing_folder/openapps/opendub-website-deploy/demo/dubbed.mp4";
 const TYPES = { ".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".json": "application/json",
   ".wasm": "application/wasm", ".mp4": "video/mp4", ".png": "image/png", ".woff2": "font/woff2" };
@@ -188,6 +191,36 @@ const askContentScript = async (page) => {
   check("it offers every language the site does", state.languages >= 17, `${state.languages} languages`);
   check("and says whether the free voice is there", state.voices.some((v) => /Free|computer/i.test(v)), state.voices.join(" | "));
   check("no page errors", errors.length === 0, errors.join(" | "));
+  await page.close();
+}
+
+// --- the app not running, then starting ---------------------------------------
+// The real app may well be running on the machine doing the test, so its
+// address is played here: refused first, answering a few seconds later.
+{
+  let up = false;
+  await browser.route("http://127.0.0.1:8910/**", (route) => up
+    ? route.fulfill({ status: 200, headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+        body: JSON.stringify({ ok: true, app: "opendub", omnivoice: true }) })
+    : route.abort("connectionrefused"));
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e).slice(0, 140)));
+  await page.goto(`chrome-extension://${id}/dub.html?src=${encodeURIComponent(`${origin}/video.mp4`)}&name=holiday`,
+    { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => /Not running/.test(document.querySelector("#omni-status").textContent), null, { timeout: 30000 }).catch(() => {});
+  const down = await page.evaluate(() => ({
+    text: document.querySelector("#omni-status").textContent,
+    link: document.querySelector("#omni-status a")?.href || "",
+  }));
+  check("with the app not running, it offers this system's installer", /OpenDub(\.dmg|-setup\.exe)|#app/.test(down.link), down.text);
+  check("and says it will connect by itself", /connects by itself/.test(down.text), down.text);
+  up = true;
+  const came = await page.waitForFunction(() => /Connected/.test(document.querySelector("#omni-status").textContent), null, { timeout: 15000 })
+    .then(() => true, () => false);
+  check("once the app answers, it connects without a click", came);
+  check("no page errors with the app away", errors.length === 0, errors.join(" | "));
+  await browser.unroute("http://127.0.0.1:8910/**");
   await page.close();
 }
 

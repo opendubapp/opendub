@@ -5,6 +5,11 @@
 
 import { dub, STAGES, LANGUAGES, capabilities, localAppStatus, singleThreaded } from "./browser/opendub-browser.js";
 
+// Which installer to offer, and whether opendub:// can start anything (Mac only).
+const PLATFORM = navigator.userAgentData?.platform || navigator.platform || "";
+const IS_MAC = /mac/i.test(PLATFORM);
+const IS_WIN = /win/i.test(PLATFORM);
+
 // Before anything loads a model: an extension page may not start a worker
 // from a blob: URL, which is what the runtime's threaded build does.
 await singleThreaded();
@@ -94,12 +99,54 @@ async function offerVoices() {
   }
   free.disabled = true;
   $("#omni").classList.add("is-unavailable");
+  // Only the Mac app registers opendub://, so only there is "Start" a button
+  // that can do anything; everywhere, the installer for this system is one
+  // click away, and the page connects by itself once the app answers.
   $("#omni-status").replaceChildren(
-    document.createTextNode("Not running. "),
-    startButton(),
-    document.createTextNode(" on this computer, or use a key."));
+    document.createTextNode("Not running on this computer. "),
+    ...(IS_MAC ? [startButton(), document.createTextNode(" · ")] : []),
+    downloadLink(),
+    document.createTextNode(" — this page connects by itself once it is running. Or use a key."));
   document.querySelector('input[name="voice"][value="higgs"]').checked = true;
   $("#keywrap").hidden = false;
+  waitForApp(15 * 60, 3);
+}
+
+
+/** The installer for this system, or the page with the one-line install. */
+function downloadLink() {
+  const href = IS_MAC ? "https://opendub.app/OpenDub.dmg"
+    : IS_WIN ? "https://opendub.app/OpenDub-setup.exe"
+    : "https://opendub.app/#app";
+  return Object.assign(document.createElement("a"), {
+    href, target: "_blank", rel: "noreferrer",
+    textContent: IS_MAC ? "Download for Mac" : IS_WIN ? "Download for Windows" : "Install OpenDub",
+  });
+}
+
+/** Keep looking until the app answers, then switch the free voice on. */
+let waiting = null;
+function waitForApp(seconds, every) {
+  if (waiting) clearInterval(waiting);
+  const until = Date.now() + seconds * 1000;
+  waiting = setInterval(async () => {
+    if (Date.now() > until) { clearInterval(waiting); waiting = null; return; }
+    if (document.hidden) return;
+    if (await localAppStatus()) {
+      clearInterval(waiting);
+      waiting = null;
+      connected();
+    }
+  }, every * 1000);
+}
+
+function connected() {
+  const free = freeRadio();
+  free.disabled = false;
+  free.checked = true;
+  $("#omni").classList.remove("is-unavailable");
+  $("#omni-status").textContent = "Connected to the OpenDub app on this computer.";
+  $("#keywrap").hidden = true;
 }
 
 /**
@@ -119,25 +166,18 @@ function startButton() {
   b.addEventListener("click", async () => {
     b.disabled = true;
     const status = $("#omni-status");
-    status.textContent = "Asking macOS to open OpenDub…";
+    status.textContent = "Opening OpenDub…";
     location.href = "opendub://start";
     for (let waited = 0; waited < 40; waited++) {
       await new Promise((ok) => setTimeout(ok, 1000));
-      if (await localAppStatus()) {
-        const free = freeRadio();
-        free.disabled = false;
-        free.checked = true;
-        $("#omni").classList.remove("is-unavailable");
-        status.textContent = "Connected to the OpenDub app on this computer.";
-        $("#keywrap").hidden = true;
-        return;
-      }
+      if (await localAppStatus()) return connected();
       if (waited === 4) status.textContent = "Waiting for OpenDub to start…";
     }
     status.replaceChildren(
-      document.createTextNode("OpenDub did not start. If it is not installed yet, get it from "),
-      Object.assign(document.createElement("a"), { href: "https://opendub.app", target: "_blank", rel: "noreferrer", textContent: "opendub.app" }),
-      document.createTextNode("."));
+      document.createTextNode("OpenDub did not start. If it is not installed yet: "),
+      downloadLink(),
+      document.createTextNode(" — this page connects by itself once it is running."));
+    waitForApp(15 * 60, 3);
   });
   return b;
 }
