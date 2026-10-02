@@ -58,6 +58,11 @@
       <!-- The public site: dub right here, in this tab. -->
       <form class="dub-card" id="dub-here" hidden autocomplete="off">
         <p class="oa-eyebrow">Dub your own video</p>
+        <div class="app-link" id="applink" data-state="idle" role="status">
+          <span class="app-link-dot" aria-hidden="true"></span>
+          <span class="app-link-text" id="applink-text">The free voices run in the OpenDub app on this computer.</span>
+          <button type="button" class="oa-btn oa-btn--primary oa-btn--sm" id="applink-btn">Connect to OpenDub</button>
+        </div>
         <label class="mini-drop" id="bdrop" for="bfile">
           <input id="bfile" type="file" accept="video/*" hidden />
           <span class="mini-drop-title" id="bdrop-title">Choose a video, or drop it here</span>
